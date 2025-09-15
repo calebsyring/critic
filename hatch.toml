@@ -1,0 +1,17 @@
+## Build
+[build]
+dev-mode-dirs = ['src']
+
+
+## Env: default
+[envs.default]
+installer = "uv"
+
+
+## Version
+[version]
+source = 'regex_commit'
+path = 'src/critic/version.py'
+
+# https://github.com/frankie567/hatch-regex-commit?#version-source-options
+tag_sign = false
