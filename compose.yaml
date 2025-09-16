@@ -1,0 +1,18 @@
+services:
+  app:
+    image: critic:latest
+    container_name: critic
+    # The build key is important because it keeps our local docker building new images when changes
+    # are made to the project.  Without it, once its built, it will keep using the image
+    # currently in docker.
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8080:8080"
+  # Use this with `docker compose run` if you need to explore the AWS python image
+  runnable:
+    image: critic:latest
+    entrypoint: /bin/bash
+    tty: true
+    stdin_open: true
