@@ -1,0 +1,62 @@
+[build-system]
+requires = [
+    'hatchling',
+    'hatch-regex-commit',
+]
+build-backend = 'hatchling.build'
+
+
+[project]
+name = 'Critic'
+authors = [
+    {name = 'Caleb Syring', email = 'caleb.syring@level12.io'},
+]
+requires-python = '~=3.13.0'
+dynamic = ['version']
+readme = 'readme.md'
+
+
+[project.scripts]
+'critic' = 'critic.cli:main'
+
+
+[dependency-groups]
+# Note: keeping Coppy deps grouped separate from app deps should help avoid unnecessary
+# conflicts when upgrading to the latest Coppy template.
+dev = [
+    # From Coppy:
+    {include-group = "tests"},
+    {include-group = "pre-commit"},
+    {include-group = "audit"},
+    {include-group = "nox"},
+    'click',
+    'hatch',
+    'ruff',
+
+    # App specific:
+    # TODO: fill in app deps here
+]
+# Used by nox
+tests = [
+    # From Coppy:
+    'pytest',
+    'pytest-cov',
+
+    # App specific:
+    # TODO: fill in app deps here
+]
+# Used by nox
+pre-commit = [
+    # From Coppy:
+    'pre-commit',
+    'pre-commit-uv',
+]
+# Used by nox
+audit = [
+    # From Coppy:
+    'pip-audit',
+]
+# Used by CI
+nox = [
+    'nox',
+]
