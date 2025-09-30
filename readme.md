@@ -1,9 +1,7 @@
 # Critic
 [![nox](https://github.com/calebsyring/critic/actions/workflows/nox.yaml/badge.svg)](https://github.com/calebsyring/critic/actions/workflows/nox.yaml)
 
-## Dev
-
-### Copier Template
+## Copier Template
 
 Project structure and tooling mostly derives from the [Coppy](https://github.com/level12/coppy),
 see its documentation for context and additional instructions.
@@ -11,7 +9,7 @@ see its documentation for context and additional instructions.
 This project can be updated from the upstream repo, see
 [Updating a Project](https://github.com/level12/coppy?tab=readme-ov-file#updating-a-project).
 
-### Project Setup
+## Project Setup
 
 From zero to hero (passing tests that is):
 
@@ -33,18 +31,13 @@ From zero to hero (passing tests that is):
 
    `nox`
 
-### Versions
+## AWS Authentication
+1. Follow [env-config documentation](https://github.com/level12/env-config) to configure your AWS profile. Call the profile "critic-dev".
+2. Activate it:
 
-Versions are date based.  A `bump` action exists to help manage versions:
+   `env-config aws`
+3. Verify:
 
-```shell
+   `mu auth-check`
 
-  # Show current version
-  mise bump --show
-
-  # Bump version based on date, tag, and push:
-  mise bump
-
-  # See other options
-  mise bump -- --help
-```
+   `mu invoke --env dev`
