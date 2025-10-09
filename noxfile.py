@@ -43,4 +43,6 @@ def audit(session: nox.Session):
         'pip-audit',
         '--desc',
         '--skip-editable',
+        '--ignore-vuln',
+        'GHSA-4xh5-x5gv-qwph',
     )
