@@ -32,3 +32,9 @@ repos:
     rev: 0.8.17
     hooks:
       - id: uv-lock
+  - repo: https://github.com/astral-sh/ruff-pre-commit   # The Git repo that provides Ruff’s pre-commit hooks
+    rev: v0.6.9                                          # The specific Ruff version to use (pin it so CI is reproducible)
+    hooks:
+      - id: ruff                                         # Run the Ruff linter
+        args: [--fix, --exit-non-zero-on-fix]            # Auto-fix issues and fail if it had to fix any
+      - id: ruff-format                                  # Run Ruff’s code formatter (like Black)
