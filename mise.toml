@@ -3,7 +3,7 @@ PROJECT_SLUG = '{{ config_root | basename | slugify }}'
 AWS_REGION = "us-east-2"
 DDB_TABLE  = "monitor_table"
 AWS_ENDPOINT_URL = "http://localhost:4566"
-FLASK_APP="src/app.py"
+FLASK_APP="src/critic/app.py"
 FLASK_DEBUG="1"
 FLASK_RUN_PORT="8000"
 
