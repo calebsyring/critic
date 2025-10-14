@@ -1,5 +1,11 @@
 [env]
 PROJECT_SLUG = '{{ config_root | basename | slugify }}'
+AWS_REGION = "us-east-2"
+DDB_TABLE  = "monitor_table"
+AWS_ENDPOINT_URL = "http://localhost:4566"
+FLASK_APP="src/app.py"
+FLASK_DEBUG="1"
+FLASK_RUN_PORT="8000"
 
 _.python.venv.path = '{% if env.UV_PROJECT_ENVIRONMENT %}{{ env.UV_PROJECT_ENVIRONMENT }}{% else %}.venv{% endif %}'
 _.python.venv.create = true
@@ -18,9 +24,37 @@ description = 'Full pytest run with html coverage report'
 run = 'pytest --cov --cov-report=html --no-cov-on-fail'
 
 
+[tasks.init]
+run = "uv sync"
+
+[tasks.dev]
+run = "flask run --debug"
+
+
 [tasks.upgrade-deps]
 description = "Upgrade uv and pre-commit dependencies"
 run = [
     'uv sync --upgrade',
     'pre-commit autoupdate',
 ]
+
+
+[tasks.curl_put]
+run = '''
+curl -sS -X PUT http://localhost:$FLASK_RUN_PORT/group/web-prod \
+ -H "Content-Type: application/json" \
+ -d '{
+   "monitors": [{
+     "group_id": "web-prod",
+     "alert_slack_channels": ["#ops"],
+     "alert_emails": ["alerts@example.com"],
+     "realert_interval": 600,
+     "state": "new",
+     "failures_before_alerting": 2,
+     "url": "https://example.com/health",
+     "interval": 30,
+     "timeout": 5,
+     "assertions": {"status_code": 200, "body_contains": "OK"}
+   }]
+ }'
+'''
