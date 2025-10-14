@@ -94,9 +94,3 @@ def put_group(group_id: str):
             'message': 'OK (skeleton) — parsed and validated; no DB yet',
         }
     ), 200
-
-
-# Optional: quick sanity endpoint
-@app.route('/healthz', methods=['GET'])
-def healthz():
-    return jsonify({'status': 'ok'}), 200
