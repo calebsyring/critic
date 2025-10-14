@@ -73,6 +73,7 @@ def put_group(group_id: str):
     try:
         data = request.get_json(force=True, silent=False)
         body = PutBody(**data)
+
     except (TypeError, ValidationError) as e:
         detail = e.errors() if isinstance(e, ValidationError) else str(e)
         return jsonify({'error': 'invalid payload', 'detail': detail}), 400
@@ -89,7 +90,7 @@ def put_group(group_id: str):
     return jsonify(
         {
             'group_id': group_id,
-            'received': [m.model_dump() for m in body.monitors],
+            'received': [m.model_dump(mode='json') for m in body.monitors],
             'message': 'OK (skeleton) — parsed and validated; no DB yet',
         }
     ), 200
