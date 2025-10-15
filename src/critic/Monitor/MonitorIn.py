@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import UUID4, AwareDatetime, BaseModel, Field, HttpUrl
 
 
 class Assertions(BaseModel):
@@ -16,13 +16,19 @@ class _State(str, Enum):
 
 
 class MonitorIn(BaseModel):
-    group_id: str | None = None
+    project_id: str  # Slugified project name
+    id: UUID4
+
+    state: _State = _State.new
+
+    url: HttpUrl
+    interval: int = Field(..., description='minutes', ge=1)
+    next_due_at: AwareDatetime  # Should be rounded to nearest minute
+
+    timeout: int = Field(..., description='seconds', ge=1)
+    assertions: Assertions | None = None
+
+    failures_before_alerting: int = Field(1, ge=0)
     alert_slack_channels: list[str] = Field(default_factory=list)
     alert_emails: list[str] = Field(default_factory=list)
     realert_interval: int = Field(..., description='seconds', ge=0)
-    state: _State = _State.new
-    failures_before_alerting: int = Field(1, ge=0)
-    url: HttpUrl
-    interval: int = Field(..., description='seconds', ge=1)
-    timeout: int = Field(..., description='seconds', ge=1)
-    assertions: Assertions | None = None
