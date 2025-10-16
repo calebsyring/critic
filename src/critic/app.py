@@ -1,7 +1,10 @@
 import logging
 
-from flask import Flask
+from flask import Flask, jsonify, request
 import mu
+from pydantic import BaseModel, Field, ValidationError
+
+from .Monitor.MonitorIn import MonitorIn
 
 
 log = logging.getLogger()
@@ -35,3 +38,35 @@ class ActionHandler(mu.ActionHandler):
 
 # The entry point for AWS lambda has to be a function
 lambda_handler = ActionHandler.on_event
+
+
+class PutBody(BaseModel):
+    monitors: list[MonitorIn] = Field(default_factory=list)
+
+
+@app.route('/group/<group_id>', methods=['PUT'])
+def put_group(group_id: str):
+    try:
+        data = request.get_json(force=True, silent=False)
+        body = PutBody(**data)
+
+    except (TypeError, ValidationError) as e:
+        detail = e.errors() if isinstance(e, ValidationError) else str(e)
+        return jsonify({'error': 'invalid payload', 'detail': detail}), 400
+
+    for m in body.monitors:
+        if m.group_id is not None and m.group_id != group_id:
+            return jsonify(
+                {
+                    'error': 'group_id mismatch',
+                    'detail': f"monitor.group_id '{m.group_id}' != path '{group_id}'",
+                }
+            ), 400
+
+    return jsonify(
+        {
+            'group_id': group_id,
+            'received': [m.model_dump(mode='json') for m in body.monitors],
+            'message': 'OK (skeleton) — parsed and validated; no DB yet',
+        }
+    ), 200
