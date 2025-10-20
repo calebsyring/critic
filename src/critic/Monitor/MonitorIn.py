@@ -32,3 +32,6 @@ class MonitorIn(BaseModel):
     alert_slack_channels: list[str] = Field(default_factory=list)
     alert_emails: list[str] = Field(default_factory=list)
     realert_interval: int = Field(..., description='seconds', ge=0)
+
+    # GSI Scheduler for the query: NextDueIndex
+    GSI_PK: str = Field(default='DUE_MONITOR', description='Static partition key for NextDueIndex')

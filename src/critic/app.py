@@ -1,8 +1,13 @@
+# Saving this for later.
+# from critic.libs.store import put_monitor
 import logging
 
 from flask import Flask, jsonify, request
 import mu
 from pydantic import BaseModel, Field, ValidationError
+
+from critic.libs.scheduler import run_due_once
+from critic.libs.uptime import check_monitor
 
 from .Monitor.MonitorIn import MonitorIn
 
@@ -55,11 +60,11 @@ def put_group(group_id: str):
         return jsonify({'error': 'invalid payload', 'detail': detail}), 400
 
     for m in body.monitors:
-        if m.group_id is not None and m.group_id != group_id:
+        if m.project_id is not None and m.project_id != group_id:
             return jsonify(
                 {
                     'error': 'group_id mismatch',
-                    'detail': f"monitor.group_id '{m.group_id}' != path '{group_id}'",
+                    'detail': f"monitor.project_id '{m.project_id}' != path '{group_id}'",
                 }
             ), 400
 
@@ -70,3 +75,24 @@ def put_group(group_id: str):
             'message': 'OK (skeleton) — parsed and validated; no DB yet',
         }
     ), 200
+
+
+# Create monitor endpoint
+@app.route('/scheduler/run', methods=['POST'])
+def scheduler_run():
+    updated = run_due_once()
+    return jsonify({'updated_count': len(updated), 'updated': updated}), 200
+
+
+# Create monitor check endpoint
+@app.route('/monitor/check', methods=['POST'])
+def monitor_check():
+    try:
+        data = request.get_json(force=True, silent=False)
+        m = MonitorIn(**data)
+    except (TypeError, ValidationError) as e:
+        detail = e.errors() if isinstance(e, ValidationError) else str(e)
+        return jsonify({'error': 'invalid payload', 'detail': detail}), 400
+
+    result = check_monitor(m).model_dump(mode='json')
+    return jsonify({'result': result}), 200
