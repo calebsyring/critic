@@ -3,7 +3,7 @@ from __future__ import annotations
 import concurrent.futures
 import time
 
-from critic.libs.store import query_due_monitors, update_monitor
+from critic.libs.store import query_due_monitors, put_monitor
 from critic.libs.uptime import check_monitor
 from critic.Monitor.MonitorIn import MonitorIn
 
@@ -32,7 +32,7 @@ def run_due_once(max_workers: int = 8, table: str | None = None) -> list[dict]:
             'last_body_contains': r.body_contains,
             'GSI_PK': 'DUE_MONITOR',
         }
-        update_monitor(updated, table=table)
+        put_monitor(updated, table=table)
         return updated
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
