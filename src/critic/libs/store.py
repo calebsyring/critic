@@ -29,7 +29,7 @@ def _table_name(default: str = 'Monitor') -> str:
     return os.getenv('DDB_TABLE', default)
 
 
-def put_monitor(monitor_dict: dict, table: str | None = None) -> dict:
+def put_monitor(monitor_dict: dict, table: str | None = None):
     """
     Upsert a monitor. Ensures GSI_PK exists for due scanning.
     """
@@ -38,14 +38,8 @@ def put_monitor(monitor_dict: dict, table: str | None = None) -> dict:
     if 'GSI_PK' not in item:
         item['GSI_PK'] = serializer.serialize('DUE_MONITOR')
     _ddb_client().put_item(TableName=table, Item=item)
-    return item
+    
 
-
-def update_monitor(monitor_dict: dict, table: str | None = None) -> None:
-    """
-    Overwrite the item (simple put) after checker updates state/next_due_at, etc.
-    """
-    put_monitor(monitor_dict, table=table)
 
 
 def get_monitor(group_id: str, id_: str, table: str | None = None) -> dict | None:
