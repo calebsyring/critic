@@ -24,7 +24,7 @@ The `UptimeMonitor` model defines a specific URL to be monitored and its associa
 | `assertions` | `map` | Defines conditions to check against the HTTP response (e.g., `response.time`, `response.code`). Structure varies by field. Refer to Cronitor for available fields. |
 | `failures_before_alerting` | `int` | Number of consecutive failures before an alert is triggered. |
 | `alert_slack_channels` | `list<str>` | List of Slack channels to send alerts to. |
-| `alert_emails` `list<str>` | List of email addresses to send alerts to. |
+| `alert_emails` |`list<str>` | List of email addresses to send alerts to. |
 | `realert_interval_mins` | `int` | Minimum time in minutes between consecutive alerts for the same issue. |
 
 ## UptimeLog
