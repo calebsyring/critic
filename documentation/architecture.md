@@ -66,7 +66,8 @@
 flowchart TD
 
 subgraph UserSide[User Side]
-    UI[Web UI] -->|REST calls| API[Flask API]
+    UI[Web UI]
+    API[Flask API]
 end
 
 subgraph AWS[Backend AWS]
