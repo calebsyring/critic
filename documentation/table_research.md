@@ -1,9 +1,9 @@
 # Table Research
 
 ### Overview:
-- Project Table – stores information about projects that group monitors  
-- Uptime Monitor Table – stores monitor configurations and current state  
-- Uptime Log Table – stores logs of each check result for reporting and history 
+- Project Table – stores information about projects that group monitors
+- Uptime Monitor Table – stores monitor configurations and current state
+- Uptime Log Table – stores logs of each check result for reporting and history
 
 
 ### Project Table:
@@ -68,6 +68,6 @@
 This document outlines the three main DynamoDB-style tables used for uptime tracking:
 - **Project Table** holds high-level project data.
 - **Uptime Monitor Table** defines each monitor’s configuration and operational state.
-- **Uptime Log Table** records every individual check result for audit and analytics.  
+- **Uptime Log Table** records every individual check result for audit and analytics.
 
 Together, these tables enable structured tracking, alerting, and performance reporting for monitored systems.
