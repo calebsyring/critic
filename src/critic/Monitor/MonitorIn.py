@@ -32,3 +32,16 @@ class MonitorIn(BaseModel):
     alert_slack_channels: list[str] = Field(default_factory=list)
     alert_emails: list[str] = Field(default_factory=list)
     realert_interval: int = Field(..., description='seconds', ge=0)
+
+
+class UptimeLog(BaseModel):
+    monitor_id: UUID4 = Field(..., description='monitor')
+    timestamp: int = Field(..., description='time', ge=0)
+    status: _State = Field(..., description='status')
+    resp_code: int = Field(..., description='code', ge=100, le=599)
+    latency_secs: float = Field(..., description='latency', ge=0)
+
+
+class Project(BaseModel):
+    id: UUID4 = Field(..., description='partition_key')
+    name: str = Field(..., description='project_name')
