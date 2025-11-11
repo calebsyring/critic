@@ -26,12 +26,13 @@ The `UptimeMonitor` model defines a specific URL to be monitored and its associa
 | `url` | `str` | The URL to be monitored. |
 | `frequency_mins` | `int` | How often the monitor should run, in minutes (minimum 1 minute due to scheduler precision). |
 | `next_due_at` | `str` | UTC timestamp (ISO format string) when the next check is due. |
-| `timeout_secs` | `int` | Timeout for the HTTP request in seconds. |
+| `timeout_secs` | `float` | Timeout for the HTTP request in seconds. |
 | `assertions` | `map` | Defines conditions to check against the HTTP response (e.g., `response.time`, `response.code`). Structure varies by field. Refer to Cronitor for available fields. |
 | `failures_before_alerting` | `int` | Number of consecutive failures before an alert is triggered. |
 | `alert_slack_channels` | `list<str>` | List of Slack channels to send alerts to. |
 | `alert_emails` |`list<str>` | List of email addresses to send alerts to. |
 | `realert_interval_mins` | `int` | Minimum time in minutes between consecutive alerts for the same issue. |
+| `GSI_PK` | `str` | Constant ("all monitors") partition key for the NextDueIndex GSI. |
 
 #### **Here is an example of what it could look like:**
 
