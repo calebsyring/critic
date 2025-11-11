@@ -12,8 +12,8 @@ The `Project` model represents a logical grouping for uptime monitors.
 
 | id | name |
 |----|------|
-| `a1k9...` | "Website Monitors" |
-| `b45d...` | "API Watcher" |
+| `a1k9...` | "App 1" |
+| `b45d...` | "App 2" |
 
 ## UptimeMonitor
 The `UptimeMonitor` model defines a specific URL to be monitored and its associated configuration.
@@ -25,7 +25,7 @@ The `UptimeMonitor` model defines a specific URL to be monitored and its associa
 | `state` | `enum` | Current state of the monitor (`new`, `up`, `down`, `paused`). |
 | `url` | `str` | The URL to be monitored. |
 | `frequency_mins` | `int` | How often the monitor should run, in minutes (minimum 1 minute due to scheduler precision). |
-| `next_due_at` | `int` or `str` | Timestamp (epoch int or ISO format string) when the next check is due. |
+| `next_due_at` | `str` | UTC timestamp (ISO format string) when the next check is due. |
 | `timeout_secs` | `int` | Timeout for the HTTP request in seconds. |
 | `assertions` | `map` | Defines conditions to check against the HTTP response (e.g., `response.time`, `response.code`). Structure varies by field. Refer to Cronitor for available fields. |
 | `failures_before_alerting` | `int` | Number of consecutive failures before an alert is triggered. |
@@ -37,11 +37,11 @@ The `UptimeMonitor` model defines a specific URL to be monitored and its associa
 
 | project_id | slug | state | url | frequency_mins | next_due_at | timeout_secs | assertions | failures_before_alerting | alert_slack_channels | alert_emails | realert_interval_mins |
 |------------|------|-------|-----|----------------|-------------|--------------|------------|-------------------------|---------------------|--------------|----------------------|
-| `a1k9...` | `homepage-check` | `up` | `https://example.com/home-page` | 5 | `1730851200` | 30 | `{"response.code": 200, "response.time": {"$lt": 2000}}` | 3 | `["#alerts", "#ops"]` | `["ops@example.com"]` | 60 |
-| `a1k9...` | `api-health` | `down` | `https://api.example.com/health` | 1 | `1730851260` | 10 | `{"response.code": 200}` | 1 | `["#critical"]` | `["oncall@example.com"]` | 30 |
-| `b45d...` | `login-endpoint` | `paused` | `https://app.example.com/login` | 10 | `1730851800` | 15 | `{"response.code": {"$in": [200, 302]}}` | 2 | `[]` | `[]` | 120 |
+| `a1k9...` | `homepage-check` | `up` | `https://example.com/home-page` | 5 | `2025-11-10T20:35:00Z` | 30 | `{"response.code": 200, "response.time": {"$lt": 2000}}` | 3 | `["#alerts", "#ops"]` | `["ops@example.com"]` | 60 |
+| `a1k9...` | `api-health` | `down` | `https://api.example.com/health` | 1 | `2025-11-10T20:40:00Z` | 10 | `{"response.code": 200}` | 1 | `["#critical"]` | `["oncall@example.com"]` | 30 |
+| `b45d...` | `login-endpoint` | `paused` | `https://app.example.com/login` | 10 | `2025-11-10T20:45:00Z` | 15 | `{"response.code": {"$in": [200, 302]}}` | 2 | `[]` | `[]` | 120 |
 
-- Assertions here may seems confusing at first! But if we look carefully, you can see there is a map from the name of the assertion to what the assertion is. In the first example it checks if the response code is a 200, and it also chekcs if the response time is `$lt`(less than) 2000 ms.
+TODO: Assertions have yet to be fully planned out. Once they are (matching Cronitor), we should add some docs here.
 
 ## UptimeLog
 The `UptimeLog` model stores the results of each individual uptime check.
@@ -49,7 +49,7 @@ The `UptimeLog` model stores the results of each individual uptime check.
 | Field | Type | Description |
 |---|---|---|
 | `monitor_id` | `uuid` | Partition key, links to the `UptimeMonitor` this log belongs to. |
-| `timestamp` | `int` | Sort key, epoch timestamp of when the check was performed. |
+| `timestamp` | `str` | Sort key, UTC ISO timestamp. |
 | `status` | `enum` | Result of the check (`up` or `down`). |
 | `resp_code` | `int` | HTTP response code received. |
 | `latency_secs` | `float` | Latency of the HTTP request in seconds (can represent milliseconds, as DynamoDB numbers are floats). |
@@ -58,12 +58,12 @@ The `UptimeLog` model stores the results of each individual uptime check.
 
 | monitor_id | timestamp | status | resp_code | latency_secs |
 |------------|-----------|--------|-----------|--------------|
-| `a1k9...#homepage-check` | `1730851200` | `up` | 200 | 0.450 |
-| `a1k9...#homepage-check` | `1730850900` | `up` | 200 | 0.420 |
-| `a1k9...#homepage-check` | `1730850600` | `down` | 500 | 1.200 |
-| `a1k9...#api-health` | `1730851260` | `down` | 500 | 0.800 |
-| `a1k9...#api-health` | `1730851200` | `down` | 503 | 1.050 |
-| `b45d...#login-endpoint` | `1730851800` | `up` | 302 | 0.320 |
+| `a1k9...` | `2025-11-10T20:30:00Z` | `up` | 200 | 0.450 |
+| `a1k9...` | `2025-11-10T20:25:00Z` | `up` | 200 | 0.420 |
+| `a1k9...` | `2025-11-10T20:20:00Z` | `down` | 500 | 1.200 |
+| `a1k9...` | `2025-11-10T20:15:00Z` | `down` | 500 | 0.800 |
+| `a1k9...` | `2025-11-10T20:10:00Z` | `down` | 503 | 1.050 |
+| `b45d...` | `2025-11-10T20:30:00Z` | `up` | 302 | 0.320 |
 
 # Lambda
 
