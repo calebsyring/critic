@@ -47,16 +47,16 @@ def run_checks(monitor: UptimeMonitor):
         monitor.state = MonitorState.down
 
     # update re-run time
-    monitor.next_due_at = (time.time() + monitor.frequency_mins * 6000)
-    
+    monitor.next_due_at = time.time() + monitor.frequency_mins * 6000
+
     # update ddb
     item = {
-            'project_id' : monitor.project_id,
-            'slug' : monitor.slug,
-            'GSI_PK': 'MONITOR',
-            'state' : monitor.state,
-            'url' : monitor.url,
-            'next_due_at' : monitor.next_due_at,
-            'timeout' : 5,
-        }
+        'project_id': monitor.project_id,
+        'slug': monitor.slug,
+        'GSI_PK': 'MONITOR',
+        'state': monitor.state,
+        'url': monitor.url,
+        'next_due_at': monitor.next_due_at,
+        'timeout': 5,
+    }
     # update logs?
