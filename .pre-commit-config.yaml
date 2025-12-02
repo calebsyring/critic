@@ -13,7 +13,7 @@ repos:
       - id: check-added-large-files
       - id: check-yaml
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.2
+    rev: v0.14.7
     hooks:
       # i.e. `ruff check`
       - id: ruff
@@ -29,11 +29,11 @@ repos:
     hooks:
       - id: check-ruff-versions
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.9.5
+    rev: 0.9.14
     hooks:
       - id: uv-lock
   - repo: https://github.com/astral-sh/ruff-pre-commit   # The Git repo that provides Ruff’s pre-commit hooks
-    rev: v0.6.9                                          # The specific Ruff version to use (pin it so CI is reproducible)
+    rev: v0.14.7                                          # The specific Ruff version to use (pin it so CI is reproducible)
     hooks:
       - id: ruff                                         # Run the Ruff linter
         args: [--fix, --exit-non-zero-on-fix]            # Auto-fix issues and fail if it had to fix any
