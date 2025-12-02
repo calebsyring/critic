@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from decimal import Decimal
 from datetime import datetime
 from enum import Enum
 from typing import Any
@@ -16,20 +16,20 @@ class MonitorState(str, Enum):
 
 
 class UptimeMonitor(BaseModel):
-    project_id: UUID
+    project_id: str
     slug: str
     state: MonitorState = MonitorState.new
-    url: HttpUrl
+    url: str
     frequency_mins: int = Field(ge=1)
-    next_due_at: datetime
-    timeout_secs: float = Field(ge=0)
+    next_due_at: int
+    timeout_secs: Decimal = Field(ge=0)
     # TODO: assertions should probably become its own model
     assertions: dict[str, Any] | None = None
     failures_before_alerting: int
     alert_slack_channels: list[str] = Field(default_factory=list)
     alert_emails: list[str] = Field(default_factory=list)
     realert_interval_mins: int = Field(ge=0)
-    GSI_PK: str = Field(default='all monitors')
+    GSI_PK: str = Field(default='MONITOR')
 
 
 class ProjectMonitors(BaseModel):
