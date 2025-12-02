@@ -5,42 +5,15 @@ import boto3
 from boto3.dynamodb.conditions import Key
 import pytest
 
-
-def create_monitor_table():
-    client = boto3.client('dynamodb', region_name='us-east-2')
-    client.create_table(
-        TableName='Monitor',
-        AttributeDefinitions=[
-            {'AttributeName': 'project_id', 'AttributeType': 'S'},
-            {'AttributeName': 'slug', 'AttributeType': 'S'},
-            {'AttributeName': 'GSI_PK', 'AttributeType': 'S'},
-            {'AttributeName': 'next_due_at', 'AttributeType': 'N'},
-        ],
-        KeySchema=[
-            {'AttributeName': 'project_id', 'KeyType': 'HASH'},
-            {'AttributeName': 'slug', 'KeyType': 'RANGE'},
-        ],
-        GlobalSecondaryIndexes=[
-            {
-                'IndexName': 'NextDueIndex',
-                'KeySchema': [
-                    {'AttributeName': 'GSI_PK', 'KeyType': 'HASH'},
-                    {'AttributeName': 'next_due_at', 'KeyType': 'RANGE'},
-                ],
-                'Projection': {'ProjectionType': 'ALL'},
-            }
-        ],
-        BillingMode='PAY_PER_REQUEST',
-    )
-
-    dynamodb = boto3.resource('dynamodb')
-    return dynamodb.Table('Monitor')
+from critic.libs.testing import create_uptime_monitor_table
 
 
 # make sure db is working properly
 def test_create_monitor_table():
-    table = create_monitor_table()
+    create_uptime_monitor_table()
 
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table('Monitor')
     random_uuid_str = str(uuid4())
     now = int(time.time())
     table.put_item(
@@ -62,3 +35,32 @@ def test_create_monitor_table():
         print(items)
     assert items[0]['project_id'] == random_uuid_str
     assert items[0]['slug'] == 'test_slug'
+    assert items[0]['state'] == 'new'
+    assert items[0]['url'] == 'google.com'
+    assert items[0]['next_due_at'] == now
+    assert items[0]['timeout'] == 5
+
+
+def test_remove_from_monitor_table():
+    # reused code, may need to be refactored? Maybe setup time, create table and return resource as global
+    create_uptime_monitor_table()
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table('Monitor')
+    random_uuid_str = str(uuid4())
+    now = int(time.time())
+    table.put_item(
+        Item={
+            'project_id': random_uuid_str,
+            'slug': 'test_slug',
+            'GSI_PK': 'MONITOR',
+            'state': 'new',
+            'url': 'google.com',
+            'next_due_at': now,
+            'timeout': 5,
+        }
+    )
+
+    table.delete_item(Key={'project_id': random_uuid_str, 'slug': 'test_slug'})
+    monitor_info = table.query(KeyConditionExpression=Key('project_id').eq(random_uuid_str))
+    items = monitor_info['Items']
+    assert len(items) == 0
