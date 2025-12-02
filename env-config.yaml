@@ -1,6 +1,4 @@
 profile:
   pypi:
     HATCH_INDEX_USER: '__token__'
-    HATCH_INDEX_AUTH: 'op://private/pypi.python.org/api-token'
-  aws:
-    AWS_PROFILE: critic-dev
+    HATCH_INDEX_AUTH: 'op://my/private/pypi.org/api-token'

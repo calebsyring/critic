@@ -7,7 +7,8 @@ Project structure and tooling mostly derives from the [Coppy](https://github.com
 see its documentation for context and additional instructions.
 
 This project can be updated from the upstream repo, see
-[Updating a Project](https://github.com/level12/coppy?tab=readme-ov-file#updating-a-project).
+[Updating a Project](https://github.com/level12/coppy?tab=readme-ov-file#template-updates).
+
 
 ## Project Setup
 
