@@ -29,40 +29,28 @@ dependencies = [
 
 
 [dependency-groups]
-# Note: keeping Coppy deps grouped separate from app deps should help avoid unnecessary
-# conflicts when upgrading to the latest Coppy template.
 dev = [
-    # From Coppy:
-    {include-group = "tests"},
+    {include-group = "pytest"},
     {include-group = "pre-commit"},
     {include-group = "audit"},
     {include-group = "nox"},
     'click',
     'hatch',
     'ruff',
-
-    # App specific:
-    # TODO: fill in app deps here
 ]
 # Used by nox
-tests = [
-    # From Coppy:
+pytest = [
     'pytest',
     'pytest-cov',
     'respx>=0.21',
-
-    # App specific:
-    # TODO: fill in app deps here
 ]
 # Used by nox
 pre-commit = [
-    # From Coppy:
     'pre-commit',
     'pre-commit-uv',
 ]
 # Used by nox
 audit = [
-    # From Coppy:
     'pip-audit',
 ]
 # Used by CI
