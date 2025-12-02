@@ -8,14 +8,14 @@ def create_uptime_monitor_table():
         AttributeDefinitions=[
             # Primary key
             {'AttributeName': 'project_id', 'AttributeType': 'S'},
-            {'AttributeName': 'id', 'AttributeType': 'S'},
+            {'AttributeName': 'slug', 'AttributeType': 'S'},
             # GSI attributes
             {'AttributeName': 'GSI_PK', 'AttributeType': 'S'},
             {'AttributeName': 'next_due_at', 'AttributeType': 'N'},
         ],
         KeySchema=[
             {'AttributeName': 'project_id', 'KeyType': 'HASH'},  # Partition key
-            {'AttributeName': 'id', 'KeyType': 'RANGE'},  # Sort key
+            {'AttributeName': 'slug', 'KeyType': 'RANGE'},  # Sort key
         ],
         GlobalSecondaryIndexes=[
             {
