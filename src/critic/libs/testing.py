@@ -31,3 +31,20 @@ def create_uptime_monitor_table():
     )
 
     return client
+
+
+def create_uptime_log_table():
+    client = boto3.client('dynamodb', region_name='us-east-2')
+    client.create_table(
+        TableName='Logging',
+        AttributeDefinitions=[
+            {'AttributeName': 'monitor_id', 'AttributeType': 'S'},
+            {'AttributeName': 'timestamp', 'AttributeType': 'S'},
+        ],
+        KeySchema=[
+            {'AttributeName': 'monitor_id', 'KeyType': 'HASH'},
+            {'AttributeName': 'timestamp', 'KeyType': 'RANGE'},
+        ],
+        BillingMode='PAY_PER_REQUEST',
+    )
+    return client
