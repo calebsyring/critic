@@ -6,6 +6,7 @@ _.python.venv.path = '{{ env.UV_PROJECT_ENVIRONMENT }}'
 
 [tools]
 python = "{{ exec(command='tasks/mise-uv-init.py py-ver', cache_key='py-ver', cache_duration='1h') | trim }}"
+terraform = "latest"
 
 
 [task_config]
