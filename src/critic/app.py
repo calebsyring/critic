@@ -1,12 +1,17 @@
 import logging
+import time
 
+import boto3
 from flask import Flask, jsonify, request
 import mu
 from pydantic import BaseModel, Field, ValidationError
 
+from critic.libs.ddb import deserializer
+
 from .Monitor.MonitorIn import MonitorIn
 
 
+dynamodb = boto3.client('dynamodb')
 log = logging.getLogger()
 
 app = Flask(__name__)
@@ -70,3 +75,27 @@ def put_group(group_id: str):
             'message': 'OK (skeleton) — parsed and validated; no DB yet',
         }
     ), 200
+
+
+@mu.task
+def run_due_checks():
+    now = int(time.time())
+
+    resp = dynamodb.query(
+        TableName='Monitor',
+        IndexName='NextDueIndex',
+        KeyConditionExpression='GSI_PK = :pk AND next_due_at <= :now',
+        ExpressionAttributeValues={
+            ':pk': {'S': 'DUE_MONITOR'},
+            ':now': {'N': str(now)},
+        },
+    )
+
+    items = [
+        {k: deserializer.deserialize(v) for k, v in item.items()} for item in resp.get('Items', [])
+    ]
+
+    for mon in items:
+        mu.invoke('run_check', payload=mon)
+
+    return {'count': len(items)}

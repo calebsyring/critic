@@ -67,11 +67,10 @@ def test_two_inputs():
 
     put_in_serialized(client, 'Monitor', API_DATA)
     put_in_serialized(client, 'Monitor', API_DATA_2)
-    
+
     ddb_data_2 = get_deserialized_data(client, 'my-project_2', API_DATA_2['id'])
-   
+
     assert ddb_data_2['id'] == '6033aa47-a9f7-4d7f-b7ff-a11ba9b34475'
- 
 
 
 def create_monitor_table():
@@ -105,13 +104,15 @@ def create_monitor_table():
 
     return client
 
-def get_deserialized_data(client, proj_id : str, data_id : str):
+
+def get_deserialized_data(client, proj_id: str, data_id: str):
     ddb_item = client.get_item(
         TableName='Monitor', Key={'project_id': {'S': proj_id}, 'id': {'S': data_id}}
     )['Item']
 
     return {k: deserializer.deserialize(v) for k, v in ddb_item.items()}
 
-def put_in_serialized(client, table_name : str, API_content : dict):
+
+def put_in_serialized(client, table_name: str, API_content: dict):
     ddb_item = {k: serializer.serialize(v) for k, v in API_content.items()}
     client.put_item(TableName=table_name, Item=ddb_item)
