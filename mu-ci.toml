@@ -1,0 +1,6 @@
+project-org = 'Level 12'
+image-name = 'critic'
+
+policy_arns = [
+    'arn:aws:iam::411307359980:policy/CriticDDBAccessTest-ci'
+]

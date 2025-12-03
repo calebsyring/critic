@@ -1,7 +1,7 @@
 # IAM policy for lambda to access DynamoDB tables - prod
 resource "aws_iam_policy" "lambda_dynamodb_prod" {
   provider = aws.prod
-  name     = "CriticDynamoDBAccess"
+  name     = "CriticDDBAccessProd"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -9,12 +9,7 @@ resource "aws_iam_policy" "lambda_dynamodb_prod" {
       {
         Effect = "Allow"
         Action = [
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:UpdateItem",
-          "dynamodb:DeleteItem",
-          "dynamodb:Query",
-          "dynamodb:Scan"
+          "dynamodb:*"
         ]
         Resource = [
           aws_dynamodb_table.project_prod.arn,
@@ -30,7 +25,7 @@ resource "aws_iam_policy" "lambda_dynamodb_prod" {
 # IAM policy for lambda to access DynamoDB tables - qa
 resource "aws_iam_policy" "lambda_dynamodb_qa" {
   provider = aws.qa
-  name     = "CriticDynamoDBAccess"
+  name     = "CriticDDBAccessQA"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -38,12 +33,7 @@ resource "aws_iam_policy" "lambda_dynamodb_qa" {
       {
         Effect = "Allow"
         Action = [
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:UpdateItem",
-          "dynamodb:DeleteItem",
-          "dynamodb:Query",
-          "dynamodb:Scan"
+          "dynamodb:*"
         ]
         Resource = [
           aws_dynamodb_table.project_qa.arn,
@@ -56,10 +46,12 @@ resource "aws_iam_policy" "lambda_dynamodb_qa" {
   })
 }
 
-# IAM policy for lambda to access DynamoDB tables - dev
+# IAM policy for lambda to access DynamoDB tables - dev (per developer)
 resource "aws_iam_policy" "lambda_dynamodb_dev" {
+  for_each = local.developers
+
   provider = aws.dev
-  name     = "CriticDynamoDBAccess"
+  name     = "CriticDDBAccessDev-${each.key}"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -67,19 +59,40 @@ resource "aws_iam_policy" "lambda_dynamodb_dev" {
       {
         Effect = "Allow"
         Action = [
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:UpdateItem",
-          "dynamodb:DeleteItem",
-          "dynamodb:Query",
-          "dynamodb:Scan"
+          "dynamodb:*"
         ]
-        Resource = concat(
-          [for dev in local.developers : aws_dynamodb_table.project_dev[dev].arn],
-          [for dev in local.developers : aws_dynamodb_table.uptime_monitor_dev[dev].arn],
-          [for dev in local.developers : aws_dynamodb_table.uptime_log_dev[dev].arn],
-          [for dev in local.developers : "${aws_dynamodb_table.uptime_monitor_dev[dev].arn}/index/*"]
-        )
+        Resource = [
+          aws_dynamodb_table.project_dev[each.key].arn,
+          aws_dynamodb_table.uptime_monitor_dev[each.key].arn,
+          aws_dynamodb_table.uptime_log_dev[each.key].arn,
+          "${aws_dynamodb_table.uptime_monitor_dev[each.key].arn}/index/*"
+        ]
+      }
+    ]
+  })
+}
+
+# IAM policy for lambda to access DynamoDB tables - test (per namespace)
+resource "aws_iam_policy" "lambda_dynamodb_test" {
+  for_each = local.test_namespaces
+
+  provider = aws.test
+  name     = "CriticDDBAccessTest-${each.key}"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:*"
+        ]
+        Resource = [
+          aws_dynamodb_table.project_test[each.key].arn,
+          aws_dynamodb_table.uptime_monitor_test[each.key].arn,
+          aws_dynamodb_table.uptime_log_test[each.key].arn,
+          "${aws_dynamodb_table.uptime_monitor_test[each.key].arn}/index/*"
+        ]
       }
     ]
   })

@@ -36,6 +36,14 @@ provider "aws" {
   region  = "us-east-2"
 }
 
+provider "aws" {
+  alias   = "test"
+  profile = "critic-test"
+  region  = "us-east-2"
+}
+
 locals {
   developers = toset(["csyring"])
+  # Test environment has developers + ci
+  test_namespaces = setunion(local.developers, toset(["ci"]))
 }
