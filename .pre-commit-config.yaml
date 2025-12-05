@@ -38,3 +38,8 @@ repos:
       - id: ruff                                         # Run the Ruff linter
         args: [--fix, --exit-non-zero-on-fix]            # Auto-fix issues and fail if it had to fix any
       - id: ruff-format                                  # Run Ruff’s code formatter (like Black)
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.104.0
+    hooks:
+      - id: terraform_fmt
+      - id: terraform_validate

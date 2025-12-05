@@ -38,3 +38,5 @@ tf.plan
 
 # Project specific
 gemini.md
+mu-test.toml
+mu-dev.toml

@@ -25,6 +25,9 @@ jobs:
         session: [audit, precommit]
 
     steps:
+      - if: matrix.session == 'precommit'
+        uses: hashicorp/setup-terraform@v3
+
       - uses: level12/coppy/gh-actions/nox-run@main
         with:
           nox-session: ${{ matrix.session }}
@@ -39,7 +42,16 @@ jobs:
       contents: read    # For actions/checkout
       id-token: write   # For codecov OIDC
 
+    env:
+      CRITIC_TEST_AWS_ACCT_ID: "411307359980"
+      CRITIC_NAMESPACE: "ci"
+
     steps:
+      - uses: aws-actions/configure-aws-credentials@v5.1.1
+        with:
+          role-to-assume: arn:aws:iam::411307359980:role/github-actions-role
+          aws-region: us-east-2
+
       - uses: level12/coppy/gh-actions/nox-run@main
         with:
           nox-session: pytest
