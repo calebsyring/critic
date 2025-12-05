@@ -4,26 +4,30 @@
 ## Mu
 
 ### Overview
-[Mu](https://github.com/level12/mu) manages key infrastructure for lambda-based Python projects. Outside of the lambda, Mu helps with some other adjacent AWS resources (mostly authentication), but other AWS resources are typically outside of Mu's scope. Critic utilizes DynamoDB, for example, so we have to manage that ourselves.
+[Mu](https://github.com/level12/mu) manages key infrastructure for lambda-based Python projects, but most AWS resources are outside of Mu's scope. Critic utilizes DynamoDB, for example, so we have to manage that ourselves. We do that with Terraform (see below).
 
 ### Granting the Lambda Access
-If you want to grant the Mu lambda access to additional resources outside of Mu's scope, utilize `policy_arns` in the relevant mu config(s).
+We can grant Mu lambdas access to additional resources outside of Mu's scope by deploying with `policy_arns` in the config.
 
 ### Environments
-Mu supports the concept of "environments," which are simply namespaced Mu resources within the same account. The Mu environment only affects the resources Mu manages (the lambda and a few other related things).
+Mu has the concept of "environments," which are simply namespaced Mu resources within the same AWS account. This is designed to support having prod, qa, etc. Mu instances (each of which includes a lambda and related infrastructure) *within the same AWS account.*
 
-*Mu environments should not be confused with account-level environments (dev, qa, and prod).* Mu environments are a layer lower, and multiple Mu environments can exist within a single account-level environment.
+We have decided to separate our environments into different AWS accounts, so the only thing we use Mu environments for is namespacing dev resources in our dev and test accounts. For example, each developer should have their own Mu instance in the test account.
 
 ### Configs
 
+This project uses several different Mu configs.
+
 Version controlled:
-- mu-prod.toml
-- mu-dev.toml
-- mu-ci.toml
+- mu-prod.toml (for the one Mu instance in the prod account)
+- mu-qa.toml (for the one Mu instance in the qa account)
+- mu-ci.toml (for the Mu instance in the test account that belongs to CI)
 
 Gitignored/per dev:
 - mu-dev.toml
 - mu-test.toml
+
+This allows developers to tweak their own Mu instances during development without affecting anyone else.
 
 
 ## Terraform
@@ -33,10 +37,10 @@ We use [terraform](https://developer.hashicorp.com/terraform) to manage all AWS 
 - DynamoDB tables
 - S3 bucket for state
 
-See the `terraform/` directory.
+See the terraform directory.
 
 
-## Accounts/Environments
+## AWS Accounts
 
 Three sub/member accounts exist under the Level 12 AWS root/management account:
 1. `critic-test` (for integration tests)
@@ -46,12 +50,12 @@ Three sub/member accounts exist under the Level 12 AWS root/management account:
 
 Region: `us-east-2`
 
-State: There is one centralized terraform state in an S3 bucket on the prod account.
+State: There is one centralized terraform state in an S3 bucket in the critic-prod account.
 
 
 ## Auth
 
-Subaccounts are created by default with an IAM role called `OrganizationAccountAccessRole`. The management account can use this IAM role to access resources in the member account.
+AWS subaccounts are created by default with an IAM role called `OrganizationAccountAccessRole`. The management account can use this IAM role to access resources in the member account:
 
 ```mermaid
 graph TB
@@ -106,7 +110,7 @@ graph TB
 ```
 
 ### Config
-You aws config should look like this:
+Accordingly, your AWS config should look like this:
 ```
 [profile level12]
 ...
@@ -128,23 +132,25 @@ role_arn = arn:aws:iam::024984659360:role/OrganizationAccountAccessRole
 region = us-east-2
 ```
 
+env-config is set up to use these AWS profiles based on which env-config profile you activate.
+
 To verify:
-- `env-config [test/dev/qa/prod]`
+- `env-config ci`
 - `mu auth-check`
-- `mu invoke --env [your-test-namespace/your-dev-namespace/qa/prod]`
+- `mu invoke`
 
 ### In the Console
-To access a subaccount in the console, go to https://us-east-2.signin.aws.amazon.com/switchrole and enter the applicable account id / role name in the example config above.
+To access a subaccount in the console, go to https://us-east-2.signin.aws.amazon.com/switchrole and enter the applicable account id / role name from the example config above.
 
 ## Tables
 
 See architecture.md for details on specific DDB tables.
 
-In the prod and qa environments, only one DDB table should exist for each conceptual table (Project, UptimeMonitor, UptimeLog).
+In the prod and qa environments, only one DDB table should exist for each model (Project, UptimeMonitor, UptimeLog).
 
-In the dev environments, there is a version of each DDB table for each developer, suffixed with their username. For example, `Project-csyring`.
+In the dev environment, there is a version of each DDB table for each developer, suffixed with their username. For example, `Project-csyring`.
 
-The test environment is the same as dev except it also has a set of tables for ci.
+The test environment is the same as dev, except it also has a set of tables for ci.
 
 ```mermaid
 graph TB

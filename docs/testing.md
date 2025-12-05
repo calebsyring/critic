@@ -1,4 +1,6 @@
-## Integration Testing Quickstart
+## Integration Testing
+
+### Quickstart
 
 1. Create a mise.local.toml with:
 ```
@@ -14,8 +16,14 @@ CRITIC_NAMESPACE = "<your-unique-namespace, e.g. csyring>"
 
 5. `env-config test` (in project root)
 
-6. `pytest -m integration`
+6. Create a mu-test.toml with your desired mu config. You can copy mu-prod.toml, but note that you may need to update any hardcoded account ids.
 
-TODO: add and explain how CI runs integration tests
-- https://github.com/level12/mu/blob/eb9d5725f2c27144759fa7163761cc3fa2efc4a1/.github/workflows/nox.yaml#L39C1-L43C32
-- https://aws.amazon.com/blogs/security/use-iam-roles-to-connect-github-actions-to-actions-in-aws/
+7. `mu provision && mu deploy`
+
+8. `pytest -m integration`
+
+### CI
+
+CI runs integration tests via an assumed role. See github_actions.tf for details.
+
+CI has namespaced resources in the test account (e.g. UptimeMonitor-ci) just like devs.

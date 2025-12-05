@@ -30,10 +30,10 @@ From zero to hero (passing tests that is):
 
 5. Run tests:
 
-   `nox`
+   `pytest -m "not integration"`
 
-TODO: initial setup instructions should not run integration tests and instead link out to integration test setup
+See testing docs for how to run integration tests.
 
 ## Docs
 
-See the [docs](docs/) directory for more information.
+See the docs directory for more information.

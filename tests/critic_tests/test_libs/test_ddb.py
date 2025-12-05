@@ -71,9 +71,44 @@ def ddb_get(ddb):
     return get_item
 
 
-@pytest.mark.integration
 class TestDDB:
-    def test_it(self, ddb_put, ddb_get):
+    @pytest.mark.integration
+    def test_integration(self, ddb_put, ddb_get):
+        # Pretend we've received data via the API
+        API_DATA = {
+            'project_id': '6033aa47-a9f7-4d7f-b7ff-a11ba9b34474',
+            'slug': 'my-monitor',
+            'url': 'https://example.com/health',
+            'frequency_mins': 5,
+            'next_due_at': '2025-11-10T20:35:00Z',
+            'timeout_secs': 30,
+            'assertions': {'status_code': 200, 'body_contains': 'OK'},
+            'failures_before_alerting': 2,
+            'alert_slack_channels': ['#ops'],
+            'alert_emails': ['alerts@example.com'],
+            'realert_interval_mins': 60,
+        }
+        # Double-check data is valid
+        UptimeMonitor(**API_DATA)
+
+        # Convert the data to DDB JSON format and store it
+        ddb_item = {k: serializer.serialize(v) for k, v in API_DATA.items()}
+        ddb_put(TableName='UptimeMonitor', Item=ddb_item)
+
+        # Retrieve the data and convert it back to a standard dict
+        ddb_item = ddb_get(
+            TableName='UptimeMonitor',
+            Key={
+                'project_id': {'S': '6033aa47-a9f7-4d7f-b7ff-a11ba9b34474'},
+                'slug': {'S': 'my-monitor'},
+            },
+        )['Item']
+        ddb_data = {k: deserializer.deserialize(v) for k, v in ddb_item.items()}
+
+        # Check one of the values to make sure it's what we expect
+        assert ddb_data['url'] == 'https://example.com/health'
+
+    def test_unit(self, ddb_put, ddb_get):
         # Pretend we've received data via the API
         API_DATA = {
             'project_id': '6033aa47-a9f7-4d7f-b7ff-a11ba9b34474',
