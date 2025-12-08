@@ -30,15 +30,10 @@ From zero to hero (passing tests that is):
 
 5. Run tests:
 
-   `nox`
+   `pytest -m "not integration"`
 
-## AWS Authentication
-1. Follow [env-config documentation](https://github.com/level12/env-config) to configure your AWS profile. Call the profile "critic-dev".
-2. Activate it:
+See testing docs for how to run integration tests.
 
-   `env-config aws`
-3. Verify:
+## Docs
 
-   `mu auth-check`
-
-   `mu invoke --env dev`
+See the docs directory for more information.

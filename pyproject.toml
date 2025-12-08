@@ -15,7 +15,7 @@ requires-python = '~=3.13.0'
 dynamic = ['version']
 readme = 'readme.md'
 dependencies = [
-    "aws-mu>=0.20250611.3",
+    "aws-mu>=0.20251205.5",
     "boto3>=1.40.31",
     "flask>=3.1.2",
     "moto[all]>=5.1.14",
