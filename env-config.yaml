@@ -1,6 +1,21 @@
 profile:
-  pypi:
-    HATCH_INDEX_USER: '__token__'
-    HATCH_INDEX_AUTH: 'op://private/pypi.python.org/api-token'
-  aws:
-    AWS_PROFILE: critic-dev
+  test:
+    AWS_PROFILE: 'critic-test'
+    MU_DEFAULT_ENV: '{env.CRITIC_NAMESPACE}'
+    MU_CONFIG_PATH: '{env.CRITIC_SRC}/mu-test.toml'
+  ci:
+    AWS_PROFILE: 'critic-test'
+    MU_DEFAULT_ENV: 'ci'
+    MU_CONFIG_PATH: '{env.CRITIC_SRC}/mu-ci.toml'
+  dev:
+    AWS_PROFILE: 'critic-dev'
+    MU_DEFAULT_ENV: '{env.CRITIC_NAMESPACE}'
+    MU_CONFIG_PATH: '{env.CRITIC_SRC}/mu-dev.toml'
+  qa:
+    AWS_PROFILE: 'critic-qa'
+    MU_DEFAULT_ENV: 'qa'
+    MU_CONFIG_PATH: '{env.CRITIC_SRC}/mu-qa.toml'
+  prod:
+    AWS_PROFILE: 'critic-prod'
+    MU_DEFAULT_ENV: 'prod'
+    MU_CONFIG_PATH: '{env.CRITIC_SRC}/mu-prod.toml'

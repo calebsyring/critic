@@ -48,3 +48,10 @@ def pytest_configure(config):
             ':wtforms.meta',
         )
     """
+
+    # Comment above explains why error comes first and not last.
+    config.addinivalue_line('filterwarnings', 'error')
+    config.addinivalue_line(
+        'filterwarnings',
+        r'ignore:Dirty template changes included automatically',
+    )

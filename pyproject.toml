@@ -15,7 +15,7 @@ requires-python = '~=3.13.0'
 dynamic = ['version']
 readme = 'readme.md'
 dependencies = [
-    "aws-mu>=0.20250611.3",
+    "aws-mu>=0.20251205.5",
     "boto3>=1.40.31",
     "flask>=3.1.2",
     "moto[all]>=5.1.14",
@@ -29,40 +29,28 @@ dependencies = [
 
 
 [dependency-groups]
-# Note: keeping Coppy deps grouped separate from app deps should help avoid unnecessary
-# conflicts when upgrading to the latest Coppy template.
 dev = [
-    # From Coppy:
-    {include-group = "tests"},
+    {include-group = "pytest"},
     {include-group = "pre-commit"},
     {include-group = "audit"},
     {include-group = "nox"},
     'click',
     'hatch',
     'ruff',
-
-    # App specific:
-    # TODO: fill in app deps here
 ]
 # Used by nox
-tests = [
-    # From Coppy:
+pytest = [
     'pytest',
     'pytest-cov',
     'respx>=0.21',
-
-    # App specific:
-    # TODO: fill in app deps here
 ]
 # Used by nox
 pre-commit = [
-    # From Coppy:
     'pre-commit',
     'pre-commit-uv',
 ]
 # Used by nox
 audit = [
-    # From Coppy:
     'pip-audit',
 ]
 # Used by CI

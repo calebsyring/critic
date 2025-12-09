@@ -1,8 +1,15 @@
 [env]
-PROJECT_SLUG = '{{ config_root | basename | slugify }}'
+# Will use a centralized venv if `~/.cache/uv-venvs` exists.  `.venv` otherwise.
+UV_PROJECT_ENVIRONMENT = "{{ exec(command='tasks/mise-uv-init.py proj-env', cache_key='proj-env', cache_duration='1h') | trim }}"
+_.python.venv.path = '{{ env.UV_PROJECT_ENVIRONMENT }}'
 
-_.python.venv.path = '{% if env.UV_PROJECT_ENVIRONMENT %}{{ env.UV_PROJECT_ENVIRONMENT }}{% else %}.venv{% endif %}'
-_.python.venv.create = true
+AWS_REGION = "us-east-2"
+# DO NOT CHANGE THIS unless you know what you're doing. You could end up running integration tests on production resources and nuking production data.
+CRITIC_TEST_AWS_ACCT_ID = "411307359980"
+
+[tools]
+python = "{{ exec(command='tasks/mise-uv-init.py py-ver', cache_key='py-ver', cache_duration='1h') | trim }}"
+terraform = "latest"
 
 
 [task_config]
@@ -19,7 +26,7 @@ run = 'pytest --cov --cov-report=html --no-cov-on-fail'
 
 
 [tasks.upgrade-deps]
-description = "Upgrade uv and pre-commit dependencies"
+description = 'Upgrade uv and pre-commit dependencies'
 run = [
     'uv sync --upgrade',
     'pre-commit autoupdate',

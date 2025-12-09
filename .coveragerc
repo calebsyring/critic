@@ -6,7 +6,7 @@ omit =
 
 source =
     src/critic
-    src/critic_tests
+    tests/critic_tests
 
 
 [html]
