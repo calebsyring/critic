@@ -22,7 +22,7 @@ class UptimeMonitor(BaseModel):
     state: MonitorState = MonitorState.new
     url: str
     frequency_mins: int = Field(ge=1)
-    next_due_at: int
+    next_due_at: str
     timeout_secs: float = Field(ge=0)
     # TODO: assertions should probably become its own model
     assertions: dict[str, Any] | None = None
@@ -35,7 +35,7 @@ class UptimeMonitor(BaseModel):
 
 class UptimeLog(BaseModel):
     project_id: str
-    timestamp: int  # still up for debate, leaving int for now
+    timestamp: str
     status: MonitorState
     resp_code: int
     latency_secs: float

@@ -75,7 +75,7 @@ def run_checks(monitor: UptimeMonitor):
     table.update_item(
         Key={'project_id': monitor.project_id, 'slug': monitor.slug},
         UpdateExpression='SET #state = :s, next_due_at = :n',
-        # we will need to redefine #state to the state category used above because state is a reserved for word ddb
+        # we will need to redefine #state to the state category used above because state is a reserved word for ddb
         ExpressionAttributeNames={'#state': 'state'},
         ExpressionAttributeValues={
             ':s': monitor.state,
