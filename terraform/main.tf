@@ -43,7 +43,7 @@ provider "aws" {
 }
 
 locals {
-  developers = toset(["csyring"])
+  developers = toset(["csyring", "jbrennan", "tgubler", "rstiff"])
   # Test environment has developers + ci
   test_namespaces = setunion(local.developers, toset(["ci"]))
 }
