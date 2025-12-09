@@ -24,15 +24,18 @@ def get_uptime_monitor():
         realert_interval_mins=1,
     )
 
-#TODO
+
+# TODO
 def send_slack_alerts(monitor: UptimeMonitor):
     pass
 
-#TODO
+
+# TODO
 def send_email_alerts(monitor: UptimeMonitor):
     pass
 
-#TODO
+
+# TODO
 def assertions_pass(monitor: UptimeMonitor, status_code: int):
     return True
 

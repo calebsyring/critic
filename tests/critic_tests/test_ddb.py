@@ -10,7 +10,6 @@ from critic.libs.testing import create_uptime_monitor_table
 
 # make sure db is working properly
 def test_create_monitor_table():
-
     create_uptime_monitor_table()
 
     dynamodb = boto3.resource('dynamodb')
