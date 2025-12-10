@@ -10,11 +10,6 @@ resource "aws_dynamodb_table" "project_prod" {
     name = "id"
     type = "S"
   }
-
-  tags = {
-    Environment = "prod"
-    Project     = "critic"
-  }
 }
 
 # Project table - qa
@@ -28,11 +23,6 @@ resource "aws_dynamodb_table" "project_qa" {
   attribute {
     name = "id"
     type = "S"
-  }
-
-  tags = {
-    Environment = "qa"
-    Project     = "critic"
   }
 }
 
@@ -103,11 +93,6 @@ resource "aws_dynamodb_table" "uptime_monitor_prod" {
     range_key       = "next_due_at"
     projection_type = "ALL"
   }
-
-  tags = {
-    Environment = "prod"
-    Project     = "critic"
-  }
 }
 
 # UptimeMonitor table - qa
@@ -144,11 +129,6 @@ resource "aws_dynamodb_table" "uptime_monitor_qa" {
     hash_key        = "GSI_PK"
     range_key       = "next_due_at"
     projection_type = "ALL"
-  }
-
-  tags = {
-    Environment = "qa"
-    Project     = "critic"
   }
 }
 
@@ -248,18 +228,12 @@ resource "aws_dynamodb_table" "uptime_log_prod" {
     name = "timestamp"
     type = "S"
   }
-
-  tags = {
-    Environment = "prod"
-    Project     = "critic"
-  }
 }
 
 # UptimeLog table - qa
 resource "aws_dynamodb_table" "uptime_log_qa" {
-  provider = aws.qa
-  name     = "UptimeLog"
-
+  provider     = aws.qa
+  name         = "UptimeLog"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "monitor_id"
   range_key    = "timestamp"
@@ -272,11 +246,6 @@ resource "aws_dynamodb_table" "uptime_log_qa" {
   attribute {
     name = "timestamp"
     type = "S"
-  }
-
-  tags = {
-    Environment = "qa"
-    Project     = "critic"
   }
 }
 
