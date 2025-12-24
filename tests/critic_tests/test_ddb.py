@@ -5,15 +5,13 @@ import boto3
 from boto3.dynamodb.conditions import Key
 import pytest
 
-from critic.libs.testing import create_uptime_monitor_table
+from critic.libs.ddb import namespace_table
 
 
 # make sure db is working properly
 def test_create_monitor_table():
-    create_uptime_monitor_table()
-
     dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('Monitor')
+    table = dynamodb.Table(namespace_table('UptimeMonitor'))
     random_uuid_str = str(uuid4())
     now = int(time.time())
     table.put_item(
@@ -42,17 +40,18 @@ def test_create_monitor_table():
 
 
 def test_remove_from_monitor_table():
-    # reused code, may need to be refactored? Maybe setup time, create table and return resource as global
-    create_uptime_monitor_table()
+    # reused code, may need to be refactored? Maybe setup time, create table
+    # and return resource as global
+
     dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('Monitor')
+    table = dynamodb.Table(namespace_table('UptimeMonitor'))
     random_uuid_str = str(uuid4())
     now = int(time.time())
     table.put_item(
         Item={
             'project_id': random_uuid_str,
             'slug': 'test_slug',
-            'GSI_PK': 'MONITOR',
+            'GSI_PK': 'UptimeMonitor',
             'state': 'new',
             'url': 'google.com',
             'next_due_at': now,

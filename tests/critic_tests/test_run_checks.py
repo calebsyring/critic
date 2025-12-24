@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from decimal import Decimal
 import time
 from uuid import uuid4
@@ -6,7 +7,8 @@ import boto3
 from boto3.dynamodb.conditions import Key
 import pytest
 
-from critic.libs.testing import create_uptime_monitor_table
+from critic.libs.ddb import namespace_table
+from critic.libs.testing import create_tables
 from critic.models import MonitorState, UptimeMonitor
 
 
@@ -18,7 +20,7 @@ def get_uptime_monitor():
         state=MonitorState.new,
         url='https://google.com',
         frequency_mins=1,
-        next_due_at=int(time.time()),
+        next_due_at=datetime.now().isoformat(),
         timeout_secs=3,
         failures_before_alerting=2,
         realert_interval_mins=1,
@@ -70,19 +72,20 @@ def run_checks(monitor: UptimeMonitor):
             send_email_alerts(monitor)
 
     # update re-run time, I think this is better than
-    monitor.next_due_at = time.time() + (monitor.frequency_mins * 6000)
+    monitor.next_due_at = (datetime.now() + timedelta(minutes=monitor.frequency_mins)).isoformat()
 
     # update ddb, should only need to send keys, state and nextdue
     dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('Monitor')
+    table = dynamodb.Table(namespace_table('UptimeMonitor'))
     table.update_item(
         Key={'project_id': monitor.project_id, 'slug': monitor.slug},
         UpdateExpression='SET #state = :s, next_due_at = :n',
-        # we will need to redefine #state to the state category used above because state is a reserved word for ddb
+        # we will need to redefine #state to the state category used above because state is a
+        # reserved word for ddb
         ExpressionAttributeNames={'#state': 'state'},
         ExpressionAttributeValues={
             ':s': monitor.state,
-            ':n': int(monitor.next_due_at),  # Ensure this is a number (int/decimal)
+            ':n': monitor.next_due_at,  # Ensure this is a number (int/decimal)
         },
     )
     # update logs
@@ -91,10 +94,8 @@ def run_checks(monitor: UptimeMonitor):
 def test_run_checks(get_uptime_monitor):
     monitor = get_uptime_monitor
 
-    create_uptime_monitor_table()
-
     dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('Monitor')
+    table = dynamodb.Table(namespace_table('UptimeMonitor'))
     table.put_item(
         Item={
             'project_id': monitor.project_id,

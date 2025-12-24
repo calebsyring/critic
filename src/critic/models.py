@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
-from decimal import Decimal
 from enum import Enum
 from typing import Any
-from uuid import UUID
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 
 
 class MonitorState(str, Enum):
@@ -34,7 +31,7 @@ class UptimeMonitor(BaseModel):
 
 
 class UptimeLog(BaseModel):
-    project_id: str
+    monitor_id: str
     timestamp: str
     status: MonitorState
     resp_code: int

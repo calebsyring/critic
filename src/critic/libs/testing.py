@@ -44,4 +44,17 @@ def create_tables():
         BillingMode='PAY_PER_REQUEST',
     )
 
+    client.create_table(
+        TableName=namespace_table('UptimeLog'),
+        AttributeDefinitions=[
+            {'AttributeName': 'monitor_id', 'AttributeType': 'S'},
+            {'AttributeName': 'timestamp', 'AttributeType': 'S'},
+        ],
+        KeySchema=[
+            {'AttributeName': 'monitor_id', 'KeyType': 'HASH'},
+            {'AttributeName': 'timestamp', 'KeyType': 'RANGE'},
+        ],
+        BillingMode='PAY_PER_REQUEST',
+    )
+
     return client
