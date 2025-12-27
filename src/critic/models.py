@@ -19,6 +19,7 @@ class UptimeMonitor(BaseModel):
     state: MonitorState = MonitorState.new
     url: str
     frequency_mins: int = Field(ge=1)
+    consecutive_fails: int = Field(ge=0)
     next_due_at: str
     timeout_secs: float = Field(ge=0)
     # TODO: assertions should probably become its own model
@@ -31,7 +32,7 @@ class UptimeMonitor(BaseModel):
 
 
 class UptimeLog(BaseModel):
-    monitor_id: str
+    monitor_id: str #for now we just combine the monitor and slug
     timestamp: str
     status: MonitorState
     resp_code: int
