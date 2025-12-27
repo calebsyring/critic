@@ -1,5 +1,6 @@
 # Critic
 [![nox](https://github.com/calebsyring/critic/actions/workflows/nox.yaml/badge.svg)](https://github.com/calebsyring/critic/actions/workflows/nox.yaml)
+[![codecov](https://codecov.io/gh/calebsyring/critic/graph/badge.svg?token=76LAGXZA8P)](https://codecov.io/gh/calebsyring/critic)
 
 ## Copier Template
 

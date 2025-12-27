@@ -3,7 +3,7 @@ name: Nox
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
   workflow_dispatch:
 
@@ -59,3 +59,4 @@ jobs:
       - uses: codecov/codecov-action@v5
         with:
           use_oidc: true
+          fail_ci_if_error: true

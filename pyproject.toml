@@ -35,6 +35,7 @@ dev = [
     {include-group = "audit"},
     {include-group = "nox"},
     'click',
+    "env-config-cli>=0.20250626.2",
     'hatch',
     'ruff',
 ]
