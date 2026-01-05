@@ -110,7 +110,7 @@ def run_checks(monitor: UptimeMonitor, http_client : httpx.Client):
             'status' : uptime_log.status,
             # well set it to 0 if there is no response is given
             'resp_code' : uptime_log.resp_code if uptime_log.resp_code else 0,
-            # well set latency to -1 if there is no response is given
+            # well set latency to -1 if there is no response given
             'latency_secs' :
                 Decimal(str(uptime_log.latency_secs) if uptime_log.latency_secs else -1)
         }
@@ -195,8 +195,7 @@ def test_run_check_fail(get_uptime_monitor):
     response = table.get_item(Key={'project_id': monitor.project_id, 'slug': monitor.slug})
     info = response['Item']
 
-    # Monitor should be down (or have increased fails)
-    # Since failures_before_alerting is 2 and fails started at 1, it should now be 2 and DOWN
+    # Monitor should be down with 2 consec fails
     assert info['state'] == MonitorState.down
     assert info['consecutive_fails'] == 2
 
@@ -204,6 +203,7 @@ def test_run_check_fail(get_uptime_monitor):
     response = logs_table.get_item(Key={'monitor_id': monitor_id, 'timestamp': time_to_check})
     info = response['Item']
 
+    #log should have resp of 0 since there was a timeout, and a latency of -1
     assert info['status'] == MonitorState.down
     assert info['resp_code'] == 0
-    assert info['latency_secs'] < 0
+    assert info['latency_secs'] == -1
