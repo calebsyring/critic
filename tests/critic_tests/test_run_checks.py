@@ -7,6 +7,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 import httpx
 import pytest
+from unittest.mock import MagicMock
 
 from critic.libs.ddb import namespace_table
 from critic.models import MonitorState, UptimeLog, UptimeMonitor
@@ -20,7 +21,7 @@ def get_uptime_monitor():
         state=MonitorState.new,
         url='https://google.com',
         frequency_mins=1,
-        consecutive_fails=0,
+        consecutive_fails=1,
         next_due_at=datetime.now().isoformat(),
         timeout_secs=3,
         failures_before_alerting=2,
@@ -39,20 +40,22 @@ def send_email_alerts(monitor: UptimeMonitor):
 
 
 # TODO
-def assertions_pass(monitor: UptimeMonitor, status_code: int):
-    return True
+def assertions_pass(monitor: UptimeMonitor, repsonse: httpx.Response):
+    return repsonse is not None #this will handle exceptions from http, but not 404 or other errors
 
 
 # not sure where to put this for now
-def run_checks(monitor: UptimeMonitor):
+def run_checks(monitor: UptimeMonitor, http_client : httpx.Client):
 
     start = time.perf_counter()
     try:
-        response: httpx.Response = httpx.head(monitor.url, timeout=float(monitor.timeout_secs))
+        response: httpx.Response = http_client.head(monitor.url, timeout=float(monitor.timeout_secs))
         finished = time.perf_counter()
-        time_to_ping = start - finished
+        time_to_ping = finished - start
     except httpx.TimeoutException:
-        response = None  # what do we do for None? Add a failed state?
+        response = None
+        #if we get some error, like a 404 that can be handled in assertions
+        #if there is a timeout, that should be handled here
         time_to_ping = None
 
     # check response and update state, this will need to work with assertions later on
@@ -61,14 +64,12 @@ def run_checks(monitor: UptimeMonitor):
         monitor.consecutive_fails = 0
     else:
         monitor.consecutive_fails += 1
-        if monitor.consecutive_fails < monitor.failures_before_alerting:
+        if monitor.consecutive_fails >= monitor.failures_before_alerting:
             monitor.state = MonitorState.down
-
-    if monitor.state == MonitorState.down:
-        if monitor.alert_slack_channels:
-            send_slack_alerts(monitor)
-        if monitor.alert_emails:
-            send_email_alerts(monitor)
+            if monitor.alert_slack_channels:
+                send_slack_alerts(monitor)
+            if monitor.alert_emails:
+                send_email_alerts(monitor)
 
     copy_of_original_next_due = monitor.next_due_at
     monitor.next_due_at = (datetime.fromisoformat(monitor.next_due_at)
@@ -98,16 +99,20 @@ def run_checks(monitor: UptimeMonitor):
     uptime_log = UptimeLog(monitor_id=(monitor_id),
                             timestamp=copy_of_original_next_due,
                             status=monitor.state,
-                            resp_code=response_code,
+                            resp_code=response_code ,
                             latency_secs=time_to_ping)
     logs_table = dynamodb.Table(namespace_table('UptimeLog'))
+
     logs_table.put_item(
         Item={
             'monitor_id' : uptime_log.monitor_id,
             'timestamp' : uptime_log.timestamp,
             'status' : uptime_log.status,
-            'resp_code' : uptime_log.resp_code,
-            'latency_secs' : Decimal(str(uptime_log.latency_secs))
+            # well set it to 0 if there is no response is given
+            'resp_code' : uptime_log.resp_code if uptime_log.resp_code else 0,
+            # well set latency to -1 if there is no response is given
+            'latency_secs' :
+                Decimal(str(uptime_log.latency_secs) if uptime_log.latency_secs else -1)
         }
     )
 
@@ -135,17 +140,70 @@ def test_run_checks(get_uptime_monitor):
     )
 
     time_to_check = monitor.next_due_at
-    run_checks(monitor)
-
+    client : httpx.Client = httpx.Client()
+    run_checks(monitor, client)
+    client.close()
     # check ddb entries
     response = table.get_item(Key={'project_id': monitor.project_id, 'slug': monitor.slug})
     info = response['Item']
 
+    # check that monitor is up, next due at is later, and consecutive fails is 0 because of passing
     assert info['state'] == MonitorState.up
     assert datetime.fromisoformat(info['next_due_at']) > datetime.fromisoformat(time_to_check)
+    assert info['consecutive_fails'] == 0
 
     monitor_id = monitor.project_id + monitor.slug
     response = logs_table.get_item(Key={'monitor_id': monitor_id, 'timestamp': time_to_check})
     info = response['Item']
-    assert info['status'] == MonitorState.up
+
     # check logging stuff
+    assert info['status'] == MonitorState.up
+    assert info['resp_code'] > 0
+    assert info['latency_secs'] > 0
+
+def test_run_check_fail(get_uptime_monitor):
+    monitor: UptimeMonitor = get_uptime_monitor
+
+    mock_client = MagicMock()
+    mock_client.head.side_effect = httpx.TimeoutException("Connection timed out")
+
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(namespace_table('UptimeMonitor'))
+    logs_table = dynamodb.Table(namespace_table('UptimeLog'))
+
+    table.put_item(
+        Item={
+            'project_id': monitor.project_id,
+            'slug': monitor.slug,
+            'GSI_PK': 'MONITOR',
+            'state': monitor.state,
+            'url': monitor.url,
+            'consecutive_fails': monitor.consecutive_fails,
+            'next_due_at': monitor.next_due_at,
+            'timeout_secs': Decimal(str(monitor.timeout_secs)),
+            'failures_before_alerting': monitor.failures_before_alerting,
+            'realert_interval_mins': monitor.realert_interval_mins,
+        }
+    )
+
+    time_to_check = monitor.next_due_at
+
+    # Inject the mock client
+    run_checks(monitor, http_client=mock_client)
+
+
+    response = table.get_item(Key={'project_id': monitor.project_id, 'slug': monitor.slug})
+    info = response['Item']
+
+    # Monitor should be down (or have increased fails)
+    # Since failures_before_alerting is 2 and fails started at 1, it should now be 2 and DOWN
+    assert info['state'] == MonitorState.down
+    assert info['consecutive_fails'] == 2
+
+    monitor_id = monitor.project_id + monitor.slug
+    response = logs_table.get_item(Key={'monitor_id': monitor_id, 'timestamp': time_to_check})
+    info = response['Item']
+
+    assert info['status'] == MonitorState.down
+    assert info['resp_code'] == 0
+    assert info['latency_secs'] < 0

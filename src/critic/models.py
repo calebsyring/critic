@@ -35,8 +35,8 @@ class UptimeLog(BaseModel):
     monitor_id: str #for now we just combine the monitor and slug
     timestamp: str
     status: MonitorState
-    resp_code: int
-    latency_secs: float
+    resp_code: int|None
+    latency_secs: float | None
 
 
 class ProjectMonitors(BaseModel):
