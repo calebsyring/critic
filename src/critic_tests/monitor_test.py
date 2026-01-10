@@ -1,80 +1,68 @@
-import boto3
-from boto3.dynamodb.conditions import Key
-from moto import mock_aws
-
+from critic.libs.ddb import deserialize, get_client, serialize
 from critic.monitor_utility import create_monitors, delete_monitors
 from critic.tables import UptimeMonitorTable
 
 
-def _create_test_table(ddb):
-    # Create a DynamoDB table.
-    table = ddb.create_table(
-        TableName=UptimeMonitorTable.name,
-        KeySchema=[
-            {'AttributeName': UptimeMonitorTable.partition_key, 'KeyType': 'HASH'},
-            {'AttributeName': UptimeMonitorTable.sort_key, 'KeyType': 'RANGE'},
-        ],
-        AttributeDefinitions=[
-            {'AttributeName': UptimeMonitorTable.partition_key, 'AttributeType': 'S'},
-            {'AttributeName': UptimeMonitorTable.sort_key, 'AttributeType': 'S'},
-        ],
-        BillingMode='PAY_PER_REQUEST',
+def _query_project_items(table_name: str, project_id: str) -> list[dict]:
+    resp = get_client().query(
+        TableName=table_name,
+        KeyConditionExpression='project_id = :project_id',
+        ExpressionAttributeValues=serialize(
+            {
+                ':project_id': project_id,
+            }
+        ),
     )
-    table.wait_until_exists()
-    return table
+    return [deserialize(item) for item in resp.get('Items', [])]
 
 
-@mock_aws
 def test_create_and_delete_monitors():
     # Test creating and deleting monitors in DynamoDB.
-    ddb = boto3.resource('dynamodb', region_name='us-east-1')
-    table = _create_test_table(ddb)
+    table_name = UptimeMonitorTable.name()
 
     project_id = '00000000-0000-0000-0000-000000000001'
     prefix = 'stress'
 
     created = create_monitors(
-        table_name=table.name,
+        table_name=table_name,
         project_id=project_id,
         prefix=prefix,
         count=10,
-        ddb=ddb,
+        ddb=None,
     )
     assert created == 10
 
-    resp = table.query(KeyConditionExpression=Key('project_id').eq(project_id))
-    assert len(resp['Items']) == 10
+    items = _query_project_items(table_name, project_id)
+    assert len(items) == 10
 
     deleted = delete_monitors(
-        table_name=table.name,
+        table_name=table_name,
         project_id=project_id,
         prefix=prefix,
-        ddb=ddb,
+        ddb=None,
     )
     assert deleted == 10
 
-    resp_after = table.query(KeyConditionExpression=Key('project_id').eq(project_id))
-    assert resp_after['Items'] == []
+    items_after = _query_project_items(table_name, project_id)
+    assert items_after == []
 
 
-@mock_aws
 def test_delete_only_matches_prefix():
     # Test that delete_monitors only deletes items matching the given prefix.
-    ddb = boto3.resource('dynamodb', region_name='us-east-1')
-    table = _create_test_table(ddb)
+    table_name = UptimeMonitorTable.name()
 
     project_id = '00000000-0000-0000-0000-000000000001'
     prefix = 'stress'
 
-    create_monitors(table.name, project_id, prefix, 5, ddb=ddb)
-    create_monitors(table.name, project_id, 'other', 3, ddb=ddb)
+    create_monitors(table_name, project_id, prefix, 5, ddb=None)
+    create_monitors(table_name, project_id, 'other', 3, ddb=None)
 
-    resp_before = table.query(KeyConditionExpression=Key('project_id').eq(project_id))
-    assert len(resp_before['Items']) == 8
+    items_before = _query_project_items(table_name, project_id)
+    assert len(items_before) == 8
 
-    deleted = delete_monitors(table.name, project_id, prefix, ddb=ddb)
+    deleted = delete_monitors(table_name, project_id, prefix, ddb=None)
     assert deleted == 5
 
-    resp_after = table.query(KeyConditionExpression=Key('project_id').eq(project_id))
-    remaining_slugs = {item['slug'] for item in resp_after['Items']}
+    items_after = _query_project_items(table_name, project_id)
+    remaining_slugs = {item['slug'] for item in items_after}
     assert remaining_slugs == {f'other-{i:04d}' for i in range(1, 4)}

@@ -54,7 +54,6 @@ def delete_monitors(
     ddb: boto3.resources.base.ServiceResource | None = None,
 ) -> int:
     t = _table(table_name, ddb)
-
     resp = t.query(
         KeyConditionExpression=Key('project_id').eq(project_id),
         ProjectionExpression='project_id, slug',
