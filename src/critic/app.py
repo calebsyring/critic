@@ -1,6 +1,8 @@
 import logging
+import os
 
-from flask import Flask
+from flask import Flask, jsonify, request
+from monitor_utility import create_monitors, delete_monitors  # Import helpers
 import mu
 
 
@@ -27,6 +29,39 @@ def logs_example():
 @app.route('/error')
 def error():
     raise RuntimeError('Deliberate runtime error')
+
+
+@app.route('/monitors/create')
+def create_monitors_route():
+    # SImple start to get monitor going
+    table_name = os.environ.get('MONITOR_TABLE_NAME', 'Critic-Monitors')
+    project_id = request.args.get('project_id', 'demo-project')
+    prefix = request.args.get('prefix', 'demo')
+    count = int(request.args.get('count', '10'))
+
+    created = create_monitors(
+        table_name=table_name,
+        project_id=project_id,
+        prefix=prefix,
+        count=count,
+        ddb=None,  # Uses a boto3 ddb resource
+    )
+    return jsonify({'created': created})
+
+
+@app.route('/monitors/delete')
+def delete_monitors_route():
+    table_name = os.environ.get('MONITOR_TABLE_NAME', 'Critic-Monitors')
+    project_id = request.args.get('project_id', 'demo-project')
+    prefix = request.args.get('prefix', 'demo')
+
+    deleted = delete_monitors(
+        table_name=table_name,
+        project_id=project_id,
+        prefix=prefix,
+        ddb=None,
+    )
+    return jsonify({'deleted': deleted})
 
 
 class ActionHandler(mu.ActionHandler):
