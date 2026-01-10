@@ -15,7 +15,7 @@ class MonitorState(str, Enum):
     paused = 'paused'
 
 
-class UptimeMonitor(BaseModel):
+class UptimeMonitorModel(BaseModel):
     project_id: UUID
     slug: str
     state: MonitorState = MonitorState.new
@@ -33,4 +33,4 @@ class UptimeMonitor(BaseModel):
 
 
 class ProjectMonitors(BaseModel):
-    uptime: list[UptimeMonitor] = Field(default_factory=list)
+    uptime: list[UptimeMonitorModel] = Field(default_factory=list)
