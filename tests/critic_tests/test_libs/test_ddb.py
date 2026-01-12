@@ -54,3 +54,7 @@ class TestDDB:
 
         # Check one of the values to make sure it's what we expect
         assert str(out_data.url) == 'https://example.com/health'
+
+    def test_missing_sort_key(self):
+        with pytest.raises(ValueError):
+            UptimeMonitorTable.get('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474')
