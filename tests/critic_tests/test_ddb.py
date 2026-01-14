@@ -3,7 +3,6 @@ from uuid import uuid4
 
 import boto3
 from boto3.dynamodb.conditions import Key
-import pytest
 
 from critic.libs.ddb import namespace_table
 
