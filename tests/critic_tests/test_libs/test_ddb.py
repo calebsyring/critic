@@ -1,5 +1,6 @@
 import pytest
 
+from critic.models import UptimeMonitorModel
 from critic.tables import UptimeMonitorTable
 
 
@@ -30,9 +31,10 @@ class TestDDB:
         # Check one of the values to make sure it's what we expect
         assert str(out_data.url) == 'https://example.com/health'
 
-    def test_unit(self):
+    @pytest.mark.parametrize('input_as_model', [True, False])
+    def test_unit(self, input_as_model):
         # Pretend we've received data via the API
-        IN_DATA = {
+        in_data = {
             'project_id': '6033aa47-a9f7-4d7f-b7ff-a11ba9b34474',
             'slug': 'my-monitor',
             'url': 'https://example.com/health',
@@ -46,8 +48,11 @@ class TestDDB:
             'realert_interval_mins': 60,
         }
 
+        if input_as_model:
+            in_data = UptimeMonitorModel(**in_data)
+
         # Put data in
-        UptimeMonitorTable.put(IN_DATA)
+        UptimeMonitorTable.put(in_data)
 
         # Get it back out
         out_data = UptimeMonitorTable.get('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474', 'my-monitor')
@@ -56,5 +61,7 @@ class TestDDB:
         assert str(out_data.url) == 'https://example.com/health'
 
     def test_missing_sort_key(self):
+        # The table has a sort key, but we haven't provided one to get(), so this should raise an
+        # error.
         with pytest.raises(ValueError):
             UptimeMonitorTable.get('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474')
