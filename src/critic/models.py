@@ -15,7 +15,7 @@ class MonitorState(str, Enum):
 
 
 class UptimeMonitorModel(BaseModel):
-    project_id: UUID
+    project_id: str
     slug: str
     state: MonitorState = MonitorState.new
     url: str

@@ -8,27 +8,27 @@ from boto3.dynamodb.conditions import Key
 import httpx
 
 from critic.libs.ddb import namespace_table
-from critic.models import MonitorState, UptimeLog, UptimeMonitor
+from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
 
 
 # TODO
-def send_slack_alerts(monitor: UptimeMonitor):
+def send_slack_alerts(monitor: UptimeMonitorModel):
     pass
 
 
 # TODO
-def send_email_alerts(monitor: UptimeMonitor):
+def send_email_alerts(monitor: UptimeMonitorModel):
     pass
 
 
 # TODO
-def assertions_pass(monitor: UptimeMonitor, repsonse: httpx.Response):
+def assertions_pass(monitor: UptimeMonitorModel, repsonse: httpx.Response):
     return (
         repsonse is not None
     )  # this will handle exceptions from http, but not 404 or other errors
 
 
-def run_checks(monitor: UptimeMonitor, http_client: httpx.Client):
+def run_checks(monitor: UptimeMonitorModel, http_client: httpx.Client):
     if monitor.state == MonitorState.paused:
         return
 
@@ -82,7 +82,7 @@ def run_checks(monitor: UptimeMonitor, http_client: httpx.Client):
     if response:
         response_code = response.status_code
     # update logs
-    monitor_id = monitor.project_id + monitor.slug
+    monitor_id : str = monitor.project_id + monitor.slug
     uptime_log = UptimeLog(
         monitor_id=(monitor_id),
         timestamp=copy_of_original_next_due,

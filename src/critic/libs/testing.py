@@ -1,10 +1,10 @@
 import boto3
 
-from critic.libs.ddb import client, namespace_table
+from critic.libs.ddb import get_ddb_client, namespace_table
 
 
 def create_tables():
-    client.create_table(
+    get_ddb_client().create_table(
         TableName=namespace_table('Project'),
         AttributeDefinitions=[
             {'AttributeName': 'id', 'AttributeType': 'S'},
@@ -15,7 +15,7 @@ def create_tables():
         BillingMode='PAY_PER_REQUEST',
     )
 
-    client.create_table(
+    get_ddb_client().create_table(
         TableName=namespace_table('UptimeMonitor'),
         AttributeDefinitions=[
             # Key attributes
@@ -42,7 +42,7 @@ def create_tables():
         BillingMode='PAY_PER_REQUEST',
     )
 
-    client.create_table(
+    get_ddb_client().create_table(
         TableName=namespace_table('UptimeLog'),
         AttributeDefinitions=[
             {'AttributeName': 'monitor_id', 'AttributeType': 'S'},
