@@ -4,7 +4,7 @@ import boto3
 from moto import mock_aws
 import pytest
 
-from critic.libs.testing import create_tables
+from critic.libs.testing import clear_tables, create_tables
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -35,6 +35,8 @@ def moto_for_unit_tests(request):
     if request.node.get_closest_marker('integration'):
         # Integration test → do NOT mock AWS
         yield
+        # Do cleanup afterward
+        clear_tables()
     else:
         # Unit test → activate moto
         with mock_aws():
