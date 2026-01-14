@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -26,15 +27,17 @@ def get_uptime_monitor():
     )
 
 
-def test_run_checks(get_uptime_monitor):
+def test_run_checks(get_uptime_monitor, caplog):
     monitor: UptimeMonitorModel = get_uptime_monitor
     UptimeMonitorTable.put(monitor)
+    caplog.set_level(logging.INFO)
 
     time_to_check = monitor.next_due_at
     client: httpx.Client = httpx.Client()
     run_checks(monitor, client)
     client.close()
     # check ddb entries
+    assert 'Starting check' in caplog.text  # make sure method is sending log
     response: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
 
     # check that monitor is up, next due at is later, and consecutive fails is 0 because of passing

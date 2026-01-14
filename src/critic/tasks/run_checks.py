@@ -29,7 +29,7 @@ def assertions_pass(monitor: UptimeMonitorModel, repsonse: httpx.Response):
 
 def run_checks(monitor: UptimeMonitorModel, http_client: httpx.Client):
     logger = logging.getLogger(__name__)
-    logger.info(f'Starting check at {datetime.now().isoformat()} for monitor: {monitor}')
+    logger.info(f'Starting check for monitor: {monitor}')
     if monitor.state == MonitorState.paused:
         return
 
