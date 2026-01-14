@@ -8,8 +8,8 @@ import httpx
 import pytest
 
 from critic.libs.ddb import namespace_table
-from critic.models import MonitorState, UptimeMonitorModel
-from critic.tables import UptimeMonitorTable
+from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
+from critic.tables import UptimeLogTable, UptimeMonitorTable
 from critic.tasks.run_checks import run_checks
 
 
@@ -31,145 +31,81 @@ def get_uptime_monitor():
 
 def test_run_checks(get_uptime_monitor):
     monitor: UptimeMonitorModel = get_uptime_monitor
-
-    dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table(namespace_table('UptimeMonitor'))
-    logs_table = dynamodb.Table(namespace_table('UptimeLog'))
-    table.put_item(
-        Item={
-            'project_id': monitor.project_id,
-            'slug': monitor.slug,
-            'GSI_PK': 'MONITOR',
-            'state': monitor.state,
-            'url': monitor.url,
-            'consecutive_fails': monitor.consecutive_fails,
-            'next_due_at': monitor.next_due_at,
-            'timeout_secs': Decimal(str(monitor.timeout_secs)),
-            'failures_before_alerting': monitor.failures_before_alerting,
-            'realert_interval_mins': monitor.realert_interval_mins,
-        }
-    )
+    UptimeMonitorTable.put(monitor)
 
     time_to_check = monitor.next_due_at
     client: httpx.Client = httpx.Client()
     run_checks(monitor, client)
     client.close()
     # check ddb entries
-    response = table.get_item(Key={'project_id': monitor.project_id, 'slug': monitor.slug})
-    info = response['Item']
+    response: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
 
     # check that monitor is up, next due at is later, and consecutive fails is 0 because of passing
-    assert info['state'] == MonitorState.up
-    assert datetime.fromisoformat(info['next_due_at']) > datetime.fromisoformat(time_to_check)
-    assert info['consecutive_fails'] == 0
+    assert response.state == MonitorState.up
+    assert datetime.fromisoformat(response.next_due_at) > datetime.fromisoformat(time_to_check)
+    assert response.consecutive_fails == 0
 
     monitor_id = monitor.project_id + monitor.slug
-    response = logs_table.get_item(Key={'monitor_id': monitor_id, 'timestamp': time_to_check})
-    info = response['Item']
+    response: UptimeLog = UptimeLogTable.get(monitor_id, time_to_check)
+    # response = logs_table.get_item(Key={'monitor_id': monitor_id, 'timestamp': time_to_check})
 
     # check logging stuff
-    assert info['status'] == MonitorState.up
-    assert info['resp_code'] > 0
-    assert info['latency_secs'] > 0
+    assert response.status == MonitorState.up
+    assert response.resp_code > 0
+    assert response.latency_secs > 0
 
 
-# def test_run_check_fail_with_consec_fails_above_threshold(get_uptime_monitor):
-#     monitor: UptimeMonitorModel = get_uptime_monitor
+def test_run_check_fail_with_consec_fails_above_threshold(get_uptime_monitor):
+    monitor: UptimeMonitorModel = get_uptime_monitor
+    time_to_check = monitor.next_due_at
+    UptimeMonitorTable.put(monitor)
 
-#     mock_client = MagicMock()
-#     mock_client.head.side_effect = httpx.TimeoutException('Connection timed out')
+    mock_client = MagicMock()
+    mock_client.head.side_effect = httpx.TimeoutException('Connection timed out')
+    # Inject the mock client
+    run_checks(monitor, http_client=mock_client)
 
-#     dynamodb = boto3.resource('dynamodb')
-#     logs_table = dynamodb.Table(namespace_table('UptimeLog'))
-#     UptimeMonitorTable.put(monitor)
+    response: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
+    # Monitor should be down with 2 consec fails
+    assert response.state == MonitorState.down
+    assert response.consecutive_fails == 2
 
-#     time_to_check = monitor.next_due_at
-
-#     # Inject the mock client
-#     run_checks(monitor, http_client=mock_client)
-
-#     response : UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
-#     # Monitor should be down with 2 consec fails
-#     assert response.state == MonitorState.down
-#     assert response.consecutive_fails == 2
-
-#     monitor_id = str(monitor.project_id) + monitor.slug
-#     response = logs_table.get_item(Key={'monitor_id': monitor_id, 'timestamp': time_to_check})
-#     info = response['Item']
-
-#     # log should have resp of 0 since there was a timeout, and a latency of -1
-#     assert info['status'] == MonitorState.down
-#     assert info['resp_code'] == 0
-#     assert info['latency_secs'] == -1
+    monitor_id = str(monitor.project_id) + monitor.slug
+    response: UptimeLog = UptimeLogTable.get(monitor_id, time_to_check)
+    # log should have resp of 0 since there was a timeout, and a latency of -1
+    assert response.status == MonitorState.down
+    assert response.resp_code == 0
+    assert response.latency_secs == -1
 
 
 def test_run_check_fail_with_consec_fails_below_threshold(get_uptime_monitor):
     monitor: UptimeMonitorModel = get_uptime_monitor
     monitor.consecutive_fails = 0
     monitor.state = MonitorState.up
+    UptimeMonitorTable.put(monitor)
+    time_to_check = monitor.next_due_at
 
     mock_client = MagicMock()
     mock_client.head.side_effect = httpx.TimeoutException('Connection timed out')
-
-    dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table(namespace_table('UptimeMonitor'))
-    logs_table = dynamodb.Table(namespace_table('UptimeLog'))
-
-    table.put_item(
-        Item={
-            'project_id': monitor.project_id,
-            'slug': monitor.slug,
-            'GSI_PK': 'MONITOR',
-            'state': monitor.state,
-            'url': monitor.url,
-            'consecutive_fails': monitor.consecutive_fails,
-            'next_due_at': monitor.next_due_at,
-            'timeout_secs': Decimal(str(monitor.timeout_secs)),
-            'failures_before_alerting': monitor.failures_before_alerting,
-            'realert_interval_mins': monitor.realert_interval_mins,
-        }
-    )
-
-    time_to_check = monitor.next_due_at
     run_checks(monitor, http_client=mock_client)
 
-    response = table.get_item(Key={'project_id': monitor.project_id, 'slug': monitor.slug})
-    info = response['Item']
-    assert info['state'] == MonitorState.up
-    assert info['consecutive_fails'] == 1
+    response: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
+    assert response.state == MonitorState.up
+    assert response.consecutive_fails == 1
 
     monitor_id = str(monitor.project_id) + monitor.slug
-    response = logs_table.get_item(Key={'monitor_id': monitor_id, 'timestamp': time_to_check})
-    info = response['Item']
+    response: UptimeLog = UptimeLogTable.get(monitor_id, time_to_check)
     # log should have resp of 0 since there was a timeout, and a latency of -1
-    assert info['status'] == MonitorState.up
-    assert info['resp_code'] == 0
-    assert info['latency_secs'] == -1
+    assert response.status == MonitorState.up
+    assert response.resp_code == 0
+    assert response.latency_secs == -1
 
 
 # what are we doing for next due time when paused?
 def test_run_check_fail_with_paused_monitor(get_uptime_monitor):
     monitor: UptimeMonitorModel = get_uptime_monitor
     monitor.state = MonitorState.paused
-
-    dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table(namespace_table('UptimeMonitor'))
-    logs_table = dynamodb.Table(namespace_table('UptimeLog'))
-
-    table.put_item(
-        Item={
-            'project_id': str(monitor.project_id),
-            'slug': monitor.slug,
-            'GSI_PK': 'MONITOR',
-            'state': monitor.state,
-            'url': monitor.url,
-            'consecutive_fails': monitor.consecutive_fails,
-            'next_due_at': monitor.next_due_at,
-            'timeout_secs': Decimal(str(monitor.timeout_secs)),
-            'failures_before_alerting': monitor.failures_before_alerting,
-            'realert_interval_mins': monitor.realert_interval_mins,
-        }
-    )
+    UptimeMonitorTable.put(monitor)
 
     time_to_check = monitor.next_due_at
     client: httpx.Client = httpx.Client()
@@ -177,6 +113,6 @@ def test_run_check_fail_with_paused_monitor(get_uptime_monitor):
     client.close()
 
     monitor_id = str(monitor.project_id) + monitor.slug
-    response = logs_table.get_item(Key={'monitor_id': monitor_id, 'timestamp': time_to_check})
+    response: UptimeLog = UptimeLogTable.get(monitor_id, time_to_check)
     # does not have item because no log is created since the monitor is paused
-    assert 'Item' not in response
+    assert response is None

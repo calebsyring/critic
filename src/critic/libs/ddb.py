@@ -6,13 +6,18 @@ from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
 from pydantic import BaseModel
 
 
-# client = client('dynamodb')\
-
 serializer = TypeSerializer()
 deserializer = TypeDeserializer()
+_DDB_CLIENT = None
+
 
 def get_ddb_client():
-    return client('dynamodb')
+    global _DDB_CLIENT
+    if _DDB_CLIENT is None:
+        # This only runs the first time the function is called
+        _DDB_CLIENT = client('dynamodb')
+    return _DDB_CLIENT
+
 
 def serialize(data: dict) -> dict:
     """Serialize standard JSON to DynamoDB format."""
@@ -72,9 +77,14 @@ class Table:
         if cls.sort_key is not None:
             key[cls.sort_key] = sort_value
 
-        # Get item
-        item = get_ddb_client().get_item(
+        # Get item if it exists
+        response = get_ddb_client().get_item(
             TableName=cls.table_name(),
             Key=serialize(key),
-        )['Item']
+        )
+        if 'Item' not in response:
+            return None
+        else:
+            item = response['Item']
+
         return cls.model(**deserialize(item))

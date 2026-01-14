@@ -11,9 +11,18 @@ nox.options.default_venv_backend = 'uv'
 
 
 @nox.session
-def pytest(session: nox.Session):
-    uv_sync(session)
-    pytest_run(session)
+def unit(session: nox.Session):
+    # Pass 'pytest' to use the [dependency-groups.pytest] from pyproject.toml
+    # Pass project=True so that the current package is installed
+    uv_sync(session, 'pytest', project=True)
+    pytest_run(session, '-m', 'not integration')
+
+
+@nox.session
+def integration(session: nox.Session):
+    uv_sync(session, 'pytest', project=True)
+
+    pytest_run(session, '-m', 'integration')
 
 
 @nox.session

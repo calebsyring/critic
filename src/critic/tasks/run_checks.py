@@ -9,6 +9,7 @@ import httpx
 
 from critic.libs.ddb import namespace_table
 from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
+from critic.tables import UptimeMonitorTable
 
 
 # TODO
@@ -82,7 +83,7 @@ def run_checks(monitor: UptimeMonitorModel, http_client: httpx.Client):
     if response:
         response_code = response.status_code
     # update logs
-    monitor_id : str = monitor.project_id + monitor.slug
+    monitor_id: str = monitor.project_id + monitor.slug
     uptime_log = UptimeLog(
         monitor_id=(monitor_id),
         timestamp=copy_of_original_next_due,
