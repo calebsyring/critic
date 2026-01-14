@@ -32,10 +32,10 @@ class UptimeMonitor(BaseModel):
 
 
 class UptimeLog(BaseModel):
-    monitor_id: str #for now we just combine the monitor and slug
+    monitor_id: str  # for now we just combine the monitor and slug
     timestamp: str
     status: MonitorState
-    resp_code: int|None
+    resp_code: int | None
     latency_secs: float | None
 
 
