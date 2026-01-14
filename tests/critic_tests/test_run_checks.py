@@ -1,13 +1,10 @@
 from datetime import datetime
-from decimal import Decimal
 from unittest.mock import MagicMock
 from uuid import uuid4
 
-import boto3
 import httpx
 import pytest
 
-from critic.libs.ddb import namespace_table
 from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
 from critic.tables import UptimeLogTable, UptimeMonitorTable
 from critic.tasks.run_checks import run_checks
