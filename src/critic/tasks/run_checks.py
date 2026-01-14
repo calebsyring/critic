@@ -1,15 +1,13 @@
 from datetime import datetime, timedelta
-from decimal import Decimal
 import logging
 import time
 
 import boto3
-from boto3.dynamodb.conditions import Key
 import httpx
 
 from critic.libs.ddb import namespace_table
 from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
-from critic.tables import UptimeMonitorTable
+from critic.tables import UptimeLogTable
 
 
 # TODO
@@ -30,6 +28,8 @@ def assertions_pass(monitor: UptimeMonitorModel, repsonse: httpx.Response):
 
 
 def run_checks(monitor: UptimeMonitorModel, http_client: httpx.Client):
+    logger = logging.getLogger(__name__)
+    logger.info(f'Starting check at {datetime.now().isoformat()} for monitor: {monitor}')
     if monitor.state == MonitorState.paused:
         return
 
@@ -91,18 +91,10 @@ def run_checks(monitor: UptimeMonitorModel, http_client: httpx.Client):
         resp_code=response_code,
         latency_secs=time_to_ping,
     )
-    logs_table = dynamodb.Table(namespace_table('UptimeLog'))
 
-    logs_table.put_item(
-        Item={
-            'monitor_id': uptime_log.monitor_id,
-            'timestamp': uptime_log.timestamp,
-            'status': uptime_log.status,
-            # well set it to 0 if there is no response is given
-            'resp_code': uptime_log.resp_code if uptime_log.resp_code else 0,
-            # well set latency to -1 if there is no response given
-            'latency_secs': Decimal(
-                str(uptime_log.latency_secs) if uptime_log.latency_secs else -1
-            ),
-        }
-    )
+    if uptime_log.resp_code is None:
+        uptime_log.resp_code = 0
+    if uptime_log.latency_secs is None:
+        uptime_log.latency_secs = -1
+
+    UptimeLogTable.put(uptime_log)
