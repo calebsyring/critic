@@ -1,11 +1,9 @@
 import boto3
 
-from critic.libs.ddb import namespace_table
+from critic.libs.ddb import client, namespace_table
 
 
 def create_tables():
-    client = boto3.client('dynamodb', region_name='us-east-2')
-
     client.create_table(
         TableName=namespace_table('Project'),
         AttributeDefinitions=[
@@ -57,4 +55,43 @@ def create_tables():
         BillingMode='PAY_PER_REQUEST',
     )
 
-    return client
+
+def _clear_table(table_name: str):
+    """Delete all items from a DDB table without deleting the table itself."""
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(table_name)
+
+    # Only project the key(s) to reduce read cost
+    key_schema = table.key_schema
+
+    # Build safe aliases for key attributes
+    expr_attr_names = {}
+    projection_parts = []
+    for key in key_schema:
+        attr = key['AttributeName']
+        alias = f'#{attr}'
+        expr_attr_names[alias] = attr
+        projection_parts.append(alias)
+    projection = ', '.join(projection_parts)
+
+    scan_kwargs = {
+        'ProjectionExpression': projection,
+        'ExpressionAttributeNames': expr_attr_names,
+    }
+
+    with table.batch_writer() as batch:
+        while True:
+            response = table.scan(**scan_kwargs)
+
+            for item in response['Items']:
+                batch.delete_item(Key=item)
+
+            if 'LastEvaluatedKey' not in response:
+                break
+
+            scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+
+
+def clear_tables():
+    for table_name in [namespace_table(t) for t in ('Project', 'UptimeMonitor', 'UptimeLog')]:
+        _clear_table(table_name)

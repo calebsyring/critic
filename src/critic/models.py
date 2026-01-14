@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -13,8 +14,8 @@ class MonitorState(str, Enum):
     paused = 'paused'
 
 
-class UptimeMonitor(BaseModel):
-    project_id: str
+class UptimeMonitorModel(BaseModel):
+    project_id: UUID
     slug: str
     state: MonitorState = MonitorState.new
     url: str
@@ -40,4 +41,4 @@ class UptimeLog(BaseModel):
 
 
 class ProjectMonitors(BaseModel):
-    uptime: list[UptimeMonitor] = Field(default_factory=list)
+    uptime: list[UptimeMonitorModel] = Field(default_factory=list)

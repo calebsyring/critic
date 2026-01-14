@@ -1,81 +1,14 @@
-import boto3
 import pytest
 
-from critic.libs.ddb import deserializer, namespace_table, serializer
-from critic.models import UptimeMonitor
-
-
-def clear_table(table_name: str):
-    """Delete all items from a DDB table without deleting the table itself."""
-    dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table(table_name)
-
-    # Only project the key(s) to reduce read cost
-    key_schema = table.key_schema
-
-    # Build safe aliases for key attributes
-    expr_attr_names = {}
-    projection_parts = []
-    for key in key_schema:
-        attr = key['AttributeName']
-        alias = f'#{attr}'
-        expr_attr_names[alias] = attr
-        projection_parts.append(alias)
-    projection = ', '.join(projection_parts)
-
-    scan_kwargs = {
-        'ProjectionExpression': projection,
-        'ExpressionAttributeNames': expr_attr_names,
-    }
-
-    with table.batch_writer() as batch:
-        while True:
-            response = table.scan(**scan_kwargs)
-
-            for item in response['Items']:
-                batch.delete_item(Key=item)
-
-            if 'LastEvaluatedKey' not in response:
-                break
-
-            scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
-
-
-@pytest.fixture
-def ddb():
-    client = boto3.client('dynamodb')
-
-    yield client
-
-    # Clear all table items after each test for a clean slate.
-    TABLES = ('Project', 'UptimeMonitor', 'UptimeLog')
-    for t in TABLES:
-        clear_table(namespace_table(t))
-
-
-@pytest.fixture
-def ddb_put(ddb):
-    def put_item(**kwargs):
-        kwargs['TableName'] = namespace_table(kwargs['TableName'])
-        return ddb.put_item(**kwargs)
-
-    return put_item
-
-
-@pytest.fixture
-def ddb_get(ddb):
-    def get_item(**kwargs):
-        kwargs['TableName'] = namespace_table(kwargs['TableName'])
-        return ddb.get_item(**kwargs)
-
-    return get_item
+from critic.models import UptimeMonitorModel
+from critic.tables import UptimeMonitorTable
 
 
 class TestDDB:
     @pytest.mark.integration
-    def test_integration(self, ddb_put, ddb_get):
+    def test_integration(self):
         # Pretend we've received data via the API
-        API_DATA = {
+        IN_DATA = {
             'project_id': '6033aa47-a9f7-4d7f-b7ff-a11ba9b34474',
             'slug': 'my-monitor',
             'url': 'https://example.com/health',
@@ -89,29 +22,20 @@ class TestDDB:
             'alert_emails': ['alerts@example.com'],
             'realert_interval_mins': 60,
         }
-        # Double-check data is valid
-        UptimeMonitor(**API_DATA)
 
-        # Convert the data to DDB JSON format and store it
-        ddb_item = {k: serializer.serialize(v) for k, v in API_DATA.items()}
-        ddb_put(TableName='UptimeMonitor', Item=ddb_item)
+        # Put data in
+        UptimeMonitorTable.put(IN_DATA)
 
-        # Retrieve the data and convert it back to a standard dict
-        ddb_item = ddb_get(
-            TableName='UptimeMonitor',
-            Key={
-                'project_id': {'S': '6033aa47-a9f7-4d7f-b7ff-a11ba9b34474'},
-                'slug': {'S': 'my-monitor'},
-            },
-        )['Item']
-        ddb_data = {k: deserializer.deserialize(v) for k, v in ddb_item.items()}
+        # Get it back out
+        out_data = UptimeMonitorTable.get('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474', 'my-monitor')
 
         # Check one of the values to make sure it's what we expect
-        assert ddb_data['url'] == 'https://example.com/health'
+        assert str(out_data.url) == 'https://example.com/health'
 
-    def test_unit(self, ddb_put, ddb_get):
+    @pytest.mark.parametrize('input_as_model', [True, False])
+    def test_unit(self, input_as_model):
         # Pretend we've received data via the API
-        API_DATA = {
+        in_data = {
             'project_id': '6033aa47-a9f7-4d7f-b7ff-a11ba9b34474',
             'slug': 'my-monitor',
             'url': 'https://example.com/health',
@@ -125,22 +49,21 @@ class TestDDB:
             'alert_emails': ['alerts@example.com'],
             'realert_interval_mins': 60,
         }
-        # Double-check data is valid
-        UptimeMonitor(**API_DATA)
 
-        # Convert the data to DDB JSON format and store it
-        ddb_item = {k: serializer.serialize(v) for k, v in API_DATA.items()}
-        ddb_put(TableName='UptimeMonitor', Item=ddb_item)
+        if input_as_model:
+            in_data = UptimeMonitorModel(**in_data)
 
-        # Retrieve the data and convert it back to a standard dict
-        ddb_item = ddb_get(
-            TableName='UptimeMonitor',
-            Key={
-                'project_id': {'S': '6033aa47-a9f7-4d7f-b7ff-a11ba9b34474'},
-                'slug': {'S': 'my-monitor'},
-            },
-        )['Item']
-        ddb_data = {k: deserializer.deserialize(v) for k, v in ddb_item.items()}
+        # Put data in
+        UptimeMonitorTable.put(in_data)
+
+        # Get it back out
+        out_data = UptimeMonitorTable.get('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474', 'my-monitor')
 
         # Check one of the values to make sure it's what we expect
-        assert ddb_data['url'] == 'https://example.com/health'
+        assert str(out_data.url) == 'https://example.com/health'
+
+    def test_missing_sort_key(self):
+        # The table has a sort key, but we haven't provided one to get(), so this should raise an
+        # error.
+        with pytest.raises(ValueError):
+            UptimeMonitorTable.get('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474')
