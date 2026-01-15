@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
 from enum import Enum
 from typing import Any
-from uuid import UUID
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 
 
 class MonitorState(str, Enum):
@@ -16,12 +14,13 @@ class MonitorState(str, Enum):
 
 
 class UptimeMonitorModel(BaseModel):
-    project_id: UUID
+    project_id: str
     slug: str
     state: MonitorState = MonitorState.new
-    url: HttpUrl
+    url: str
     frequency_mins: int = Field(ge=1)
-    next_due_at: datetime
+    consecutive_fails: int = Field(ge=0)
+    next_due_at: str
     timeout_secs: float = Field(ge=0)
     # TODO: assertions should probably become its own model
     assertions: dict[str, Any] | None = None
@@ -29,7 +28,15 @@ class UptimeMonitorModel(BaseModel):
     alert_slack_channels: list[str] = Field(default_factory=list)
     alert_emails: list[str] = Field(default_factory=list)
     realert_interval_mins: int = Field(ge=0)
-    GSI_PK: str = Field(default='all monitors')
+    GSI_PK: str = Field(default='MONITOR')
+
+
+class UptimeLog(BaseModel):
+    monitor_id: str  # for now we just combine the monitor and slug
+    timestamp: str
+    status: MonitorState
+    resp_code: int | None
+    latency_secs: float | None
 
 
 class ProjectMonitors(BaseModel):

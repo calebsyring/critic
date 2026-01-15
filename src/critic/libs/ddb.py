@@ -6,9 +6,17 @@ from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
 from pydantic import BaseModel
 
 
-client = client('dynamodb')
 serializer = TypeSerializer()
 deserializer = TypeDeserializer()
+_DDB_CLIENT = client('dynamodb')
+
+
+def get_ddb_client():
+    global _DDB_CLIENT
+    if _DDB_CLIENT is None:
+        # This only runs the first time the function is called
+        _DDB_CLIENT = client('dynamodb')
+    return _DDB_CLIENT
 
 
 def serialize(data: dict) -> dict:
@@ -58,7 +66,7 @@ class Table:
     def put(cls, data: dict | BaseModel):
         if isinstance(data, dict):
             data = cls.model(**data)
-        client.put_item(TableName=cls.table_name(), Item=cls.model_to_ddb(data))
+        get_ddb_client().put_item(TableName=cls.table_name(), Item=cls.model_to_ddb(data))
 
     @classmethod
     def get(cls, partition_value: str | int, sort_value: str | int | None = None):
@@ -69,9 +77,14 @@ class Table:
         if cls.sort_key is not None:
             key[cls.sort_key] = sort_value
 
-        # Get item
-        item = client.get_item(
+        # Get item if it exists
+        response = get_ddb_client().get_item(
             TableName=cls.table_name(),
             Key=serialize(key),
-        )['Item']
+        )
+        if 'Item' not in response:
+            return None
+        else:
+            item = response['Item']
+
         return cls.model(**deserialize(item))
