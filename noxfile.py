@@ -13,8 +13,7 @@ nox.options.default_venv_backend = 'uv'
 @nox.session
 def pytest(session: nox.Session):
     uv_sync(session)
-    pytest_run(session, '-m', 'integration')
-    pytest_run(session, '-m', 'not integration')
+    pytest_run(session)
 
 
 @nox.session

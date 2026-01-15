@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 serializer = TypeSerializer()
 deserializer = TypeDeserializer()
-_DDB_CLIENT = None
+_DDB_CLIENT = client('dynamodb')
 
 
 def get_ddb_client():
