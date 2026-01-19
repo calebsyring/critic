@@ -9,6 +9,7 @@ import pytest
 from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
 from critic.tables import UptimeLogTable, UptimeMonitorTable
 from critic.tasks.run_checks import run_checks
+from critic_tests.test_libs.Model_factory import UptimeMonitorFactory
 
 
 @pytest.fixture
@@ -28,14 +29,22 @@ def get_uptime_monitor():
 
 
 def test_run_checks(get_uptime_monitor, caplog):
-    monitor: UptimeMonitorModel = get_uptime_monitor
+    monitor: UptimeMonitorModel = UptimeMonitorFactory.build(
+        consecutive_fails=1,
+        failures_before_alerting=2,
+        next_due_at=datetime.now().isoformat(),
+    )
     UptimeMonitorTable.put(monitor)
     caplog.set_level(logging.INFO)
 
     time_to_check = monitor.next_due_at
-    client: httpx.Client = httpx.Client()
+    client = MagicMock()
+    mock_response = MagicMock(spec=httpx.Response)
+    mock_response.status_code = 200
+    client.head.return_value = mock_response
+
     run_checks(monitor, client)
-    client.close()
+
     # check ddb entries
     assert 'Starting check' in caplog.text  # make sure method is sending log
     response: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
@@ -47,7 +56,6 @@ def test_run_checks(get_uptime_monitor, caplog):
 
     monitor_id = monitor.project_id + monitor.slug
     response: UptimeLog = UptimeLogTable.query(monitor_id)[-1]
-    # response = logs_table.get_item(Key={'monitor_id': monitor_id, 'timestamp': time_to_check})
 
     # check logging stuff
     assert response.status == MonitorState.up
