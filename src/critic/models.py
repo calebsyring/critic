@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, HttpUrl
 
 
 class MonitorState(str, Enum):
@@ -17,7 +17,7 @@ class UptimeMonitorModel(BaseModel):
     project_id: str
     slug: str
     state: MonitorState = MonitorState.new
-    url: str
+    url: HttpUrl
     frequency_mins: int = Field(ge=1)
     consecutive_fails: int = Field(ge=0)
     next_due_at: str

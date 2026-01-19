@@ -88,3 +88,19 @@ class Table:
             item = response['Item']
 
         return cls.model(**deserialize(item))
+
+    @classmethod
+    def query(cls, partition_value: str | int) -> list[BaseModel]:
+        """Query for all items with the given partition key."""
+        # We use aliases for the partition key to avoid reserved word conflicts
+        pk_alias = f'#{cls.partition_key}'
+
+        response = get_ddb_client().query(
+            TableName=cls.table_name(),
+            KeyConditionExpression=f'{pk_alias} = :pk',
+            ExpressionAttributeNames={pk_alias: cls.partition_key},
+            ExpressionAttributeValues=serialize({':pk': partition_value}),
+        )
+
+        items = response.get('Items', [])
+        return [cls.model(**deserialize(item)) for item in items]

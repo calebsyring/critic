@@ -10,6 +10,9 @@ from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
 from critic.tables import UptimeLogTable
 
 
+logger = logging.getLogger(__name__)
+
+
 # TODO
 def send_slack_alerts(monitor: UptimeMonitorModel):
     pass
@@ -28,7 +31,6 @@ def assertions_pass(monitor: UptimeMonitorModel, repsonse: httpx.Response):
 
 
 def run_checks(monitor: UptimeMonitorModel, http_client: httpx.Client):
-    logger = logging.getLogger(__name__)
     logger.info(f'Starting check for monitor: {monitor}')
     if monitor.state == MonitorState.paused:
         return
@@ -36,7 +38,7 @@ def run_checks(monitor: UptimeMonitorModel, http_client: httpx.Client):
     start = time.perf_counter()
     try:
         response: httpx.Response = http_client.head(
-            monitor.url, timeout=float(monitor.timeout_secs)
+            str(monitor.url), timeout=float(monitor.timeout_secs)
         )
         finished = time.perf_counter()
         time_to_ping = finished - start
@@ -59,7 +61,7 @@ def run_checks(monitor: UptimeMonitorModel, http_client: httpx.Client):
             if monitor.alert_emails:
                 send_email_alerts(monitor)
 
-    copy_of_original_next_due = monitor.next_due_at
+    logtime_stamp = datetime.now().isoformat()
     monitor.next_due_at = (
         datetime.fromisoformat(monitor.next_due_at) + timedelta(minutes=monitor.frequency_mins)
     ).isoformat()
@@ -86,7 +88,7 @@ def run_checks(monitor: UptimeMonitorModel, http_client: httpx.Client):
     monitor_id: str = monitor.project_id + monitor.slug
     uptime_log = UptimeLog(
         monitor_id=(monitor_id),
-        timestamp=copy_of_original_next_due,
+        timestamp=logtime_stamp,
         status=monitor.state,
         resp_code=response_code,
         latency_secs=time_to_ping,

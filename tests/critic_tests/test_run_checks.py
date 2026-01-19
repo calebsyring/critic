@@ -46,7 +46,7 @@ def test_run_checks(get_uptime_monitor, caplog):
     assert response.consecutive_fails == 0
 
     monitor_id = monitor.project_id + monitor.slug
-    response: UptimeLog = UptimeLogTable.get(monitor_id, time_to_check)
+    response: UptimeLog = UptimeLogTable.query(monitor_id)[-1]
     # response = logs_table.get_item(Key={'monitor_id': monitor_id, 'timestamp': time_to_check})
 
     # check logging stuff
@@ -57,7 +57,6 @@ def test_run_checks(get_uptime_monitor, caplog):
 
 def test_run_check_fail_with_consec_fails_above_threshold(get_uptime_monitor):
     monitor: UptimeMonitorModel = get_uptime_monitor
-    time_to_check = monitor.next_due_at
     UptimeMonitorTable.put(monitor)
 
     mock_client = MagicMock()
@@ -71,7 +70,7 @@ def test_run_check_fail_with_consec_fails_above_threshold(get_uptime_monitor):
     assert response.consecutive_fails == 2
 
     monitor_id = str(monitor.project_id) + monitor.slug
-    response: UptimeLog = UptimeLogTable.get(monitor_id, time_to_check)
+    response: UptimeLog = UptimeLogTable.query(monitor_id)[-1]
     # log should have resp of 0 since there was a timeout, and a latency of -1
     assert response.status == MonitorState.down
     assert response.resp_code == 0
@@ -83,7 +82,6 @@ def test_run_check_fail_with_consec_fails_below_threshold(get_uptime_monitor):
     monitor.consecutive_fails = 0
     monitor.state = MonitorState.up
     UptimeMonitorTable.put(monitor)
-    time_to_check = monitor.next_due_at
 
     mock_client = MagicMock()
     mock_client.head.side_effect = httpx.TimeoutException('Connection timed out')
@@ -94,7 +92,7 @@ def test_run_check_fail_with_consec_fails_below_threshold(get_uptime_monitor):
     assert response.consecutive_fails == 1
 
     monitor_id = str(monitor.project_id) + monitor.slug
-    response: UptimeLog = UptimeLogTable.get(monitor_id, time_to_check)
+    response: UptimeLog = UptimeLogTable.query(monitor_id)[-1]
     # log should have resp of 0 since there was a timeout, and a latency of -1
     assert response.status == MonitorState.up
     assert response.resp_code == 0
@@ -107,12 +105,11 @@ def test_run_check_fail_with_paused_monitor(get_uptime_monitor):
     monitor.state = MonitorState.paused
     UptimeMonitorTable.put(monitor)
 
-    time_to_check = monitor.next_due_at
     client: httpx.Client = httpx.Client()
     run_checks(monitor, client)
     client.close()
 
     monitor_id = str(monitor.project_id) + monitor.slug
-    response: UptimeLog = UptimeLogTable.get(monitor_id, time_to_check)
+    response: UptimeLog = UptimeLogTable.query(monitor_id)
     # does not have item because no log is created since the monitor is paused
-    assert response is None
+    assert response == []
