@@ -1,39 +1,31 @@
-# https://docs.astral.sh/uv/guides/integration/aws-lambda/#deploying-a-docker-image
-FROM ghcr.io/astral-sh/uv:0.8.17 AS uv
+from public.ecr.aws/lambda/python:3.13 as app
 
-# First, bundle the dependencies into the task root.
-FROM public.ecr.aws/lambda/python:3.13 AS builder
+# OS
+env UV_COMPILE_BYTECODE=1
+env UV_LINK_MODE=copy
+## Configure for system level install
+env UV_PROJECT_ENVIRONMENT=/var/lang/
 
-# Enable bytecode compilation, to improve cold-start performance.
-ENV UV_COMPILE_BYTECODE=1
+## uv install
+copy --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/
 
-# Disable installer metadata, to create a deterministic layer.
-ENV UV_NO_INSTALLER_METADATA=1
+# App
+workdir /app
 
-# Enable copy mode to support bind mount caching.
-ENV UV_LINK_MODE=copy
+## Build / deps
+copy pyproject.toml hatch.toml readme.md uv.lock .
+copy src/critic/version.py src/critic/version.py
+run --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --inexact
 
-# Bundle the dependencies into the Lambda task root via `uv pip install --target`.
-#
-# Omit any local packages (`--no-emit-workspace`) and development dependencies (`--no-dev`).
-# This ensures that the Docker layer cache is only invalidated when the `pyproject.toml` or `uv.lock`
-# files change, but remains robust to changes in the application code.
-RUN --mount=from=uv,source=/uv,target=/bin/uv \
-    --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv export --frozen --no-emit-workspace --no-dev --no-editable -o requirements.txt && \
-    uv pip install -r requirements.txt --target "${LAMBDA_TASK_ROOT}"
+## Source files after the build for better caching/speed when deps haven't changed
+copy src/critic src/critic
+copy src/lambda_handler.py src
 
-FROM public.ecr.aws/lambda/python:3.13
+## App Env
+env FLASK_DEBUG=0
 
-# Copy the runtime dependencies from the builder stage.
-COPY --from=builder ${LAMBDA_TASK_ROOT} ${LAMBDA_TASK_ROOT}
-
-# Now everything to do with the app
-COPY src/critic/ ${LAMBDA_TASK_ROOT}/
-
-# Uncomment this to get the CMD to be updated in the image.
-# RUN echo 'd' > /tmp/annoying.txt
-
-CMD ["app.lambda_handler"]
+# Lambda Entry Point
+# The lamba runtime environment will use this dotted path as the entry point to our app when
+# the lambda function is invoked.  It must be a function, it doesn't handle class methods.
+cmd ["lambda_handler.entry"]
