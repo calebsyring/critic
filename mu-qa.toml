@@ -1,6 +1,13 @@
 project-org = 'Level 12'
 image-name = 'critic'
 
-[tool.mu.event-rules.run-due-checks]
+policy-arns = [
+    'arn:aws:iam::089600762287:policy/CriticDDBAccessQA'
+]
+
+[deployed-env]
+CRITIC_NAMESPACE = 'qa'
+
+[event-rules.run-due-checks]
 action='run_due_checks'
-cron = '* * * * *'  # Every minute on the minute
+cron = '* * * * ? *'  # Every minute on the minute
