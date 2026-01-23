@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 
 from critic.models import UptimeMonitorModel
@@ -65,3 +67,7 @@ class TestDDB:
         # error.
         with pytest.raises(ValueError):
             UptimeMonitorTable.get('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474')
+
+    def test_serialize_unaware_dt(self):
+        with pytest.raises(ValueError, match='must be timezone aware'):
+            UptimeMonitorTable.get_due_since(datetime.now())

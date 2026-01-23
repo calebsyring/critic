@@ -1,0 +1,6 @@
+project-org = 'Level 12'
+image-name = 'critic'
+
+[tool.mu.event-rules.run-due-checks]
+action='run_due_checks'
+cron = '* * * * *'  # Every minute on the minute

@@ -1,11 +1,16 @@
 import boto3
+from polyfactory.factories.pydantic_factory import ModelFactory
+from pydantic import BaseModel
 
-from critic.libs.ddb import client, namespace_table
+from critic.libs.ddb import Table, get_client
+from critic.models import UptimeMonitorModel
+from critic.tables import UptimeMonitorTable
 
 
 def create_tables():
+    client = get_client()
     client.create_table(
-        TableName=namespace_table('Project'),
+        TableName=Table.namespace('Project'),
         AttributeDefinitions=[
             {'AttributeName': 'id', 'AttributeType': 'S'},
         ],
@@ -16,7 +21,7 @@ def create_tables():
     )
 
     client.create_table(
-        TableName=namespace_table('UptimeMonitor'),
+        TableName=Table.namespace('UptimeMonitor'),
         AttributeDefinitions=[
             # Key attributes
             {'AttributeName': 'project_id', 'AttributeType': 'S'},
@@ -43,7 +48,7 @@ def create_tables():
     )
 
     client.create_table(
-        TableName=namespace_table('UptimeLog'),
+        TableName=Table.namespace('UptimeLog'),
         AttributeDefinitions=[
             {'AttributeName': 'monitor_id', 'AttributeType': 'S'},
             {'AttributeName': 'timestamp', 'AttributeType': 'S'},
@@ -93,5 +98,21 @@ def _clear_table(table_name: str):
 
 
 def clear_tables():
-    for table_name in [namespace_table(t) for t in ('Project', 'UptimeMonitor', 'UptimeLog')]:
+    for table_name in [Table.namespace(t) for t in ('Project', 'UptimeMonitor', 'UptimeLog')]:
         _clear_table(table_name)
+
+
+class PutMixin:
+    __table__: type[Table]
+
+    @classmethod
+    def put(cls, **kwargs) -> BaseModel:
+        item = cls.build(**kwargs)
+        cls.__table__.put(item)
+        return item
+
+
+class UptimeMonitorFactory(PutMixin, ModelFactory):
+    __model__ = UptimeMonitorModel
+    __table__ = UptimeMonitorTable
+    __use_defaults__ = True
