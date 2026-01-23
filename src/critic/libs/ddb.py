@@ -91,6 +91,10 @@ class Table:
 
     @classmethod
     def name(cls) -> str:
+        namespace = os.environ.get('CRITIC_NAMESPACE', '')
+        if namespace in ('prod', 'qa'):
+            # Prod and QA envs don't have namespaced tables
+            return cls.base_name
         return cls.namespace(cls.base_name)
 
     @classmethod
