@@ -4,6 +4,7 @@ import boto3
 from moto import mock_aws
 import pytest
 
+import critic.libs.ddb as ddb_module
 from critic.libs.testing import clear_tables, create_tables
 
 
@@ -42,6 +43,10 @@ def moto_for_unit_tests(request):
         with mock_aws():
             create_tables()
             yield
+    # The DDB module is designed to cache the client. When we're testing unit tests and
+    # integration tests, this cache needs to be reset so the integration test doesn't get
+    # the mocked client and vice versa.
+    ddb_module._ddb_client = None
 
 
 def pytest_configure(config):

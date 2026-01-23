@@ -7,6 +7,7 @@ import mu
 
 from critic.monitor_utility import create_monitors, delete_monitors
 from critic.tables import UptimeMonitorTable
+from critic.tasks import run_due_checks
 
 
 log = logging.getLogger()
@@ -85,6 +86,10 @@ class ActionHandler(mu.ActionHandler):
     def cli(event, context):
         action_args = event.get('action-args') or []
         return cli.main(args=action_args, prog_name='critic', standalone_mode=False)
+    def run_due_checks(event, context):
+        """Triggered by EventBridge rule, invokes `run_due_checks` task."""
+        log.info('Invoking run_due_checks')
+        run_due_checks.invoke()
 
 
 lambda_handler = ActionHandler.on_event
