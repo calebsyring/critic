@@ -38,13 +38,15 @@ dev = [
     'click',
     "env-config-cli>=0.20250626.2",
     'hatch',
-    'ruff',
+    "pytest-httpx>=0.36.0",
+    "ruff==0.14.14",
 ]
 # Used by nox
 pytest = [
     'pytest',
     'pytest-cov',
     'respx>=0.21',
+    "pytest-httpx>=0.36.0",
 ]
 # Used by nox
 pre-commit = [

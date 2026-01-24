@@ -4,13 +4,20 @@ import time
 
 import boto3
 import httpx
+import mu
 
+from critic.app import app
 from critic.libs.ddb import namespace_table
 from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
-from critic.tables import UptimeLogTable
+from critic.tables import UptimeLogTable, UptimeMonitorTable
 
 
 logger = logging.getLogger(__name__)
+
+
+@app.route('/run_checks/<monitor_id>/<monitor_slug>')
+def run_checks_call(monitor_id: str, monitor_slug: str):
+    run_checks(monitor_id, monitor_slug)
 
 
 # TODO
@@ -30,23 +37,35 @@ def assertions_pass(monitor: UptimeMonitorModel, repsonse: httpx.Response):
     )  # this will handle exceptions from http, but not 404 or other errors
 
 
-def run_checks(monitor: UptimeMonitorModel, http_client: httpx.Client):
+@mu.task
+def run_checks(monitor_id: str, monitor_slug: str):
+    monitor: UptimeMonitorModel = UptimeMonitorTable.get(monitor_id, monitor_slug)
     logger.info(f'Starting check for monitor: {monitor}')
+    dynamodb = boto3.resource('dynamodb')
+    monitor_table = dynamodb.Table(namespace_table('UptimeMonitor'))
+
+    # if paused update the time and return
     if monitor.state == MonitorState.paused:
+        monitor_table.update_item(
+            Key={'project_id': monitor.project_id, 'slug': monitor.slug},
+            UpdateExpression='SET next_due_at = :n',
+            ExpressionAttributeValues={':n': monitor.next_due_at},
+        )
         return
 
     start = time.perf_counter()
-    try:
-        response: httpx.Response = http_client.head(
-            str(monitor.url), timeout=float(monitor.timeout_secs)
-        )
-        finished = time.perf_counter()
-        time_to_ping = finished - start
-    except httpx.TimeoutException:
-        response = None
-        # if we get some error, like a 404 that can be handled in assertions
-        # if there is a timeout, that should be handled here
-        time_to_ping = None
+    with httpx.Client() as client:
+        try:
+            response: httpx.Response = client.head(
+                str(monitor.url), timeout=float(monitor.timeout_secs)
+            )
+            finished = time.perf_counter()
+            time_to_ping = finished - start
+        except httpx.TimeoutException:
+            response = None
+            # if we get some error, like a 404 that can be handled in assertions
+            # if there is a timeout, that should be handled here
+            time_to_ping = None
 
     # check response and update state, this will need to work with assertions later on
     if assertions_pass(monitor, response):
@@ -67,8 +86,6 @@ def run_checks(monitor: UptimeMonitorModel, http_client: httpx.Client):
     ).isoformat()
 
     # update ddb, should only need to send keys, state and nextdue
-    dynamodb = boto3.resource('dynamodb')
-    monitor_table = dynamodb.Table(namespace_table('UptimeMonitor'))
     monitor_table.update_item(
         Key={'project_id': monitor.project_id, 'slug': monitor.slug},
         UpdateExpression='SET #state = :s, next_due_at = :n, consecutive_fails = :c',
@@ -81,9 +98,8 @@ def run_checks(monitor: UptimeMonitorModel, http_client: httpx.Client):
             ':c': monitor.consecutive_fails,
         },
     )
-    response_code = None
-    if response:
-        response_code = response.status_code
+
+    response_code = response.status_code if response else None
     # update logs
     monitor_id: str = monitor.project_id + monitor.slug
     uptime_log = UptimeLog(

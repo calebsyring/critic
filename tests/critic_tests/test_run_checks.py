@@ -1,10 +1,7 @@
 from datetime import datetime
 import logging
-from unittest.mock import MagicMock
-from uuid import uuid4
 
 import httpx
-import pytest
 
 from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
 from critic.tables import UptimeLogTable, UptimeMonitorTable
@@ -12,38 +9,20 @@ from critic.tasks.run_checks import run_checks
 from critic_tests.test_libs.Model_factory import UptimeMonitorFactory
 
 
-@pytest.fixture
-def get_uptime_monitor():
-    return UptimeMonitorModel(
-        project_id=str(uuid4()),
-        slug='test-slug',
-        state=MonitorState.new,
-        url='https://google.com',
-        frequency_mins=1,
-        consecutive_fails=1,
-        next_due_at=datetime.now().isoformat(),
-        timeout_secs=3,
-        failures_before_alerting=2,
-        realert_interval_mins=1,
-    )
-
-
-def test_run_checks(get_uptime_monitor, caplog):
+def test_run_checks(caplog, httpx_mock):
     monitor: UptimeMonitorModel = UptimeMonitorFactory.build(
         consecutive_fails=1,
         failures_before_alerting=2,
+        state=MonitorState.up,
         next_due_at=datetime.now().isoformat(),
     )
     UptimeMonitorTable.put(monitor)
     caplog.set_level(logging.INFO)
 
     time_to_check = monitor.next_due_at
-    client = MagicMock()
-    mock_response = MagicMock(spec=httpx.Response)
-    mock_response.status_code = 200
-    client.head.return_value = mock_response
 
-    run_checks(monitor, client)
+    httpx_mock.add_response()
+    run_checks(monitor.project_id, monitor.slug)
 
     # check ddb entries
     assert 'Starting check' in caplog.text  # make sure method is sending log
@@ -63,14 +42,17 @@ def test_run_checks(get_uptime_monitor, caplog):
     assert response.latency_secs > 0
 
 
-def test_run_check_fail_with_consec_fails_above_threshold(get_uptime_monitor):
-    monitor: UptimeMonitorModel = get_uptime_monitor
+def test_run_check_fail_with_consec_fails_above_threshold(httpx_mock):
+    monitor: UptimeMonitorModel = UptimeMonitorFactory.build(
+        consecutive_fails=1,
+        failures_before_alerting=2,
+        state=MonitorState.up,
+        next_due_at=datetime.now().isoformat(),
+    )
     UptimeMonitorTable.put(monitor)
 
-    mock_client = MagicMock()
-    mock_client.head.side_effect = httpx.TimeoutException('Connection timed out')
-    # Inject the mock client
-    run_checks(monitor, http_client=mock_client)
+    httpx_mock.add_exception(httpx.TimeoutException('Connection timed out'))
+    run_checks(monitor.project_id, monitor.slug)
 
     response: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
     # Monitor should be down with 2 consec fails
@@ -85,15 +67,18 @@ def test_run_check_fail_with_consec_fails_above_threshold(get_uptime_monitor):
     assert response.latency_secs == -1
 
 
-def test_run_check_fail_with_consec_fails_below_threshold(get_uptime_monitor):
-    monitor: UptimeMonitorModel = get_uptime_monitor
-    monitor.consecutive_fails = 0
-    monitor.state = MonitorState.up
+def test_run_check_fail_with_consec_fails_below_threshold(httpx_mock):
+    monitor: UptimeMonitorModel = UptimeMonitorFactory.build(
+        consecutive_fails=0,
+        failures_before_alerting=2,
+        state=MonitorState.up,
+        next_due_at=datetime.now().isoformat(),
+    )
     UptimeMonitorTable.put(monitor)
 
-    mock_client = MagicMock()
-    mock_client.head.side_effect = httpx.TimeoutException('Connection timed out')
-    run_checks(monitor, http_client=mock_client)
+    httpx_mock.add_exception(httpx.TimeoutException('Connection timed out'))
+
+    run_checks(monitor.project_id, monitor.slug)
 
     response: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
     assert response.state == MonitorState.up
@@ -108,14 +93,19 @@ def test_run_check_fail_with_consec_fails_below_threshold(get_uptime_monitor):
 
 
 # what are we doing for next due time when paused?
-def test_run_check_fail_with_paused_monitor(get_uptime_monitor):
-    monitor: UptimeMonitorModel = get_uptime_monitor
+def test_run_check_fail_with_paused_monitor():
+    monitor: UptimeMonitorModel = UptimeMonitorFactory.build(
+        consecutive_fails=0,
+        failures_before_alerting=2,
+        state=MonitorState.paused,
+        next_due_at=datetime.now().isoformat(),
+    )
     monitor.state = MonitorState.paused
     UptimeMonitorTable.put(monitor)
 
-    client: httpx.Client = httpx.Client()
-    run_checks(monitor, client)
-    client.close()
+    run_checks(monitor.project_id, monitor.slug)
+
+    response: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
 
     monitor_id = str(monitor.project_id) + monitor.slug
     response: UptimeLog = UptimeLogTable.query(monitor_id)
