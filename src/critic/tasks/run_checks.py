@@ -44,6 +44,10 @@ def run_checks(monitor_id: str, monitor_slug: str):
     dynamodb = boto3.resource('dynamodb')
     monitor_table = dynamodb.Table(namespace_table('UptimeMonitor'))
 
+    monitor.next_due_at = (
+        datetime.fromisoformat(monitor.next_due_at) + timedelta(minutes=monitor.frequency_mins)
+    ).isoformat()
+
     # if paused update the time and return
     if monitor.state == MonitorState.paused:
         monitor_table.update_item(
@@ -81,9 +85,6 @@ def run_checks(monitor_id: str, monitor_slug: str):
                 send_email_alerts(monitor)
 
     logtime_stamp = datetime.now().isoformat()
-    monitor.next_due_at = (
-        datetime.fromisoformat(monitor.next_due_at) + timedelta(minutes=monitor.frequency_mins)
-    ).isoformat()
 
     # update ddb, should only need to send keys, state and nextdue
     monitor_table.update_item(

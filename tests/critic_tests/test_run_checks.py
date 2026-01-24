@@ -100,13 +100,13 @@ def test_run_check_fail_with_paused_monitor():
         state=MonitorState.paused,
         next_due_at=datetime.now().isoformat(),
     )
-    monitor.state = MonitorState.paused
+    time_to_check = monitor.next_due_at
     UptimeMonitorTable.put(monitor)
 
     run_checks(monitor.project_id, monitor.slug)
 
     response: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
-
+    assert datetime.fromisoformat(response.next_due_at) > datetime.fromisoformat(time_to_check)
     monitor_id = str(monitor.project_id) + monitor.slug
     response: UptimeLog = UptimeLogTable.query(monitor_id)
     # does not have item because no log is created since the monitor is paused
