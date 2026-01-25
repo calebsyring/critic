@@ -19,6 +19,9 @@ def create_tables():
         ],
         BillingMode='PAY_PER_REQUEST',
     )
+    # Wait for table to be created. Added this to address table not found errors in tests.
+    # Did not help the issue, but will keep it here for future reference.
+    # client.get_waiter('table_exists').wait(TableName=Table.namespace('Project'))
 
     client.create_table(
         TableName=Table.namespace('UptimeMonitor'),
@@ -46,6 +49,9 @@ def create_tables():
         ],
         BillingMode='PAY_PER_REQUEST',
     )
+    # Wait for table to be created. Added this to address table not found errors in tests.
+    # Did not help the issue, but will keep it here for future reference.
+    # client.get_waiter('table_exists').wait(TableName=Table.namespace('UptimeMonitor'))
 
     client.create_table(
         TableName=Table.namespace('UptimeLog'),
@@ -59,6 +65,9 @@ def create_tables():
         ],
         BillingMode='PAY_PER_REQUEST',
     )
+    # Wait for table to be created. Added this to address table not found errors in tests.
+    # Did not help the issue, but will keep it here for future reference.
+    # client.get_waiter('table_exists').wait(TableName=Table.namespace('UptimeLog'))
 
 
 def _clear_table(table_name: str):

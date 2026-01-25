@@ -3,8 +3,7 @@ import logging
 from flask import Flask
 import mu
 
-from critic.cli import cli
-from critic.tasks import run_due_checks
+from critic.cli import cli as click_cli
 
 
 log = logging.getLogger()
@@ -31,20 +30,14 @@ def error():
     raise RuntimeError('Deliberate runtime error')
 
 
-# Lambda handler for CLI commands / tasks.
+# Lambda handler for CLI commands.
 class ActionHandler(mu.ActionHandler):
     wsgi_app = app
 
     @staticmethod
     def cli(event, context):
         action_args = event.get('action-args') or []
-        return cli.main(args=action_args, prog_name='critic', standalone_mode=False)
-
-    @staticmethod
-    def run_due_checks(event, context):
-        """Triggered by EventBridge rule, invokes `run_due_checks` task."""
-        log.info('Invoking run_due_checks')
-        run_due_checks.invoke()
+        return click_cli.main(args=action_args, prog_name='critic', standalone_mode=False)
 
 
 lambda_handler = ActionHandler.on_event

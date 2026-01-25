@@ -1,12 +1,20 @@
+import os
+
 import boto3
 from boto3.dynamodb.conditions import Key
 
-from critic.libs.ddb import floats_to_decimals
+# from critic.libs.ddb import floats_to_decimals
 from critic.models import UptimeMonitorModel
+from critic.tables import UptimeMonitorTable
 
 
 def _table(table_name: str, ddb: boto3.resources.base.ServiceResource | None = None):
-    return (ddb or boto3.resource('dynamodb')).Table(table_name)
+    if ddb is None:
+        ddb = boto3.resource(
+            'dynamodb',
+            region_name=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'),
+        )
+    return ddb.Table(table_name)
 
 
 def _monitor_item(project_id: str, slug: str) -> dict:
@@ -25,9 +33,9 @@ def _monitor_item(project_id: str, slug: str) -> dict:
         realert_interval_mins=60,
     )
 
-    # Resource API expects plain python types (NOT DynamoDB AttributeValue format).
+    # Resource API expects plain python types, NOT DynamoDB AttributeValue format.
     plain = inst.model_dump(mode='json', exclude_none=True)
-    return floats_to_decimals(plain)
+    return plain
 
 
 def create_monitors(
@@ -37,12 +45,15 @@ def create_monitors(
     count: int,
     ddb: boto3.resources.base.ServiceResource | None = None,
 ) -> int:
-    t = _table(table_name, ddb)
+    for i in range(1, count + 1):
+        slug = f'{prefix}-{i:04d}'
+        item = _monitor_item(project_id=project_id, slug=slug)
 
-    with t.batch_writer() as bw:
-        for i in range(1, count + 1):
-            slug = f'{prefix}-{i:04d}'
-            bw.put_item(Item=_monitor_item(project_id=project_id, slug=slug))
+        # Use table extraction. Fall back to boto3 only if override is necessary
+        if table_name == UptimeMonitorTable.name():
+            UptimeMonitorTable.put(item)
+        else:
+            _table(table_name, ddb).put_item(Item=item)
 
     return count
 

@@ -2,7 +2,9 @@ from datetime import datetime
 from decimal import Decimal
 import os
 
-from boto3 import client
+import boto3
+
+# from boto3 import client
 from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
 from pydantic import AwareDatetime, BaseModel, TypeAdapter
 
@@ -21,7 +23,9 @@ def get_client():
     """
     global _ddb_client
     if _ddb_client is None:
-        _ddb_client = client('dynamodb')
+        # Changed import from "client" to raw "boto3" import to fix issues
+        # with mocked clients in tests. See imports above.
+        _ddb_client = boto3.client('dynamodb')
     return _ddb_client
 
 
