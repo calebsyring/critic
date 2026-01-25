@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 import logging
 import time
 
@@ -6,18 +6,12 @@ import boto3
 import httpx
 import mu
 
-from critic.app import app
-from critic.libs.ddb import namespace_table
+from critic.libs.ddb import UPTIME_MONITOR
 from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
 from critic.tables import UptimeLogTable, UptimeMonitorTable
 
 
-logger = logging.getLogger(__name__)
-
-
-@app.route('/run_checks/<monitor_id>/<monitor_slug>')
-def run_checks_call(monitor_id: str, monitor_slug: str):
-    run_checks(monitor_id, monitor_slug)
+log = logging.getLogger(__name__)
 
 
 # TODO
@@ -40,20 +34,18 @@ def assertions_pass(monitor: UptimeMonitorModel, repsonse: httpx.Response):
 @mu.task
 def run_checks(monitor_id: str, monitor_slug: str):
     monitor: UptimeMonitorModel = UptimeMonitorTable.get(monitor_id, monitor_slug)
-    logger.info(f'Starting check for monitor: {monitor}')
+    log.info(f'Starting check for monitor: {monitor}')
     dynamodb = boto3.resource('dynamodb')
-    monitor_table = dynamodb.Table(namespace_table('UptimeMonitor'))
+    monitor_table = dynamodb.Table(UptimeMonitorTable.namespace(UPTIME_MONITOR))
 
-    monitor.next_due_at = (
-        datetime.fromisoformat(monitor.next_due_at) + timedelta(minutes=monitor.frequency_mins)
-    ).isoformat()
+    monitor.next_due_at = monitor.next_due_at + timedelta(minutes=monitor.frequency_mins)
 
     # if paused update the time and return
     if monitor.state == MonitorState.paused:
         monitor_table.update_item(
             Key={'project_id': monitor.project_id, 'slug': monitor.slug},
             UpdateExpression='SET next_due_at = :n',
-            ExpressionAttributeValues={':n': monitor.next_due_at},
+            ExpressionAttributeValues={':n': monitor.next_due_at.isoformat()},
         )
         return
 
@@ -84,7 +76,8 @@ def run_checks(monitor_id: str, monitor_slug: str):
             if monitor.alert_emails:
                 send_email_alerts(monitor)
 
-    logtime_stamp = datetime.now().isoformat()
+    # this might be correct for the tzinfo?
+    logtime_stamp = datetime.now(tz=monitor.next_due_at.tzinfo).isoformat()
 
     # update ddb, should only need to send keys, state and nextdue
     monitor_table.update_item(
@@ -95,7 +88,7 @@ def run_checks(monitor_id: str, monitor_slug: str):
         ExpressionAttributeNames={'#state': 'state'},
         ExpressionAttributeValues={
             ':s': monitor.state,
-            ':n': monitor.next_due_at,
+            ':n': monitor.next_due_at.isoformat(),
             ':c': monitor.consecutive_fails,
         },
     )
@@ -117,3 +110,25 @@ def run_checks(monitor_id: str, monitor_slug: str):
         uptime_log.latency_secs = -1
 
     UptimeLogTable.put(uptime_log)
+
+
+@mu.task
+def run_due_checks():
+    """
+    This task is invoked by an EventBridge rule once a minute. It queries for all monitors that are
+    due and invokes `run_check` for each one.
+    """
+    now = datetime.now(UTC)
+    log.info(f'Triggering due checks at {now.isoformat()}')
+
+    # Round `now` to the nearest minute in case there is a slight inaccuracy in scheduling
+    rounded_now = now.replace(second=0, microsecond=0)
+    if now.second >= 30:
+        rounded_now = rounded_now + timedelta(minutes=1)
+
+    # Trigger `run_check` for each due monitor.
+    due_monitors = UptimeMonitorTable.get_due_since(rounded_now)
+    for monitor in due_monitors:
+        run_checks.invoke(str(monitor.project_id), monitor.slug)
+
+    log.info(f'Due checks triggered for {len(due_monitors)} monitors in {datetime.now(UTC) - now}')

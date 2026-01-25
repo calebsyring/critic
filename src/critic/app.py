@@ -1,7 +1,6 @@
 import logging
 
 from flask import Flask
-import mu
 
 
 log = logging.getLogger()
@@ -27,11 +26,3 @@ def logs_example():
 @app.route('/error')
 def error():
     raise RuntimeError('Deliberate runtime error')
-
-
-class ActionHandler(mu.ActionHandler):
-    wsgi_app = app
-
-
-# The entry point for AWS lambda has to be a function
-lambda_handler = ActionHandler.on_event

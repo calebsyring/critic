@@ -1,11 +1,10 @@
-from datetime import datetime
 import logging
 
 import httpx
 
 from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
 from critic.tables import UptimeLogTable, UptimeMonitorTable
-from critic.tasks.run_checks import run_checks
+from critic.tasks import run_checks
 from critic_tests.test_libs.Model_factory import UptimeMonitorFactory
 
 
@@ -14,7 +13,6 @@ def test_run_checks(caplog, httpx_mock):
         consecutive_fails=1,
         failures_before_alerting=2,
         state=MonitorState.up,
-        next_due_at=datetime.now().isoformat(),
     )
     UptimeMonitorTable.put(monitor)
     caplog.set_level(logging.INFO)
@@ -30,7 +28,7 @@ def test_run_checks(caplog, httpx_mock):
 
     # check that monitor is up, next due at is later, and consecutive fails is 0 because of passing
     assert response.state == MonitorState.up
-    assert datetime.fromisoformat(response.next_due_at) > datetime.fromisoformat(time_to_check)
+    assert response.next_due_at > time_to_check
     assert response.consecutive_fails == 0
 
     monitor_id = monitor.project_id + monitor.slug
@@ -47,7 +45,6 @@ def test_run_check_fail_with_consec_fails_above_threshold(httpx_mock):
         consecutive_fails=1,
         failures_before_alerting=2,
         state=MonitorState.up,
-        next_due_at=datetime.now().isoformat(),
     )
     UptimeMonitorTable.put(monitor)
 
@@ -72,7 +69,6 @@ def test_run_check_fail_with_consec_fails_below_threshold(httpx_mock):
         consecutive_fails=0,
         failures_before_alerting=2,
         state=MonitorState.up,
-        next_due_at=datetime.now().isoformat(),
     )
     UptimeMonitorTable.put(monitor)
 
@@ -98,7 +94,6 @@ def test_run_check_fail_with_paused_monitor():
         consecutive_fails=0,
         failures_before_alerting=2,
         state=MonitorState.paused,
-        next_due_at=datetime.now().isoformat(),
     )
     time_to_check = monitor.next_due_at
     UptimeMonitorTable.put(monitor)
@@ -106,7 +101,7 @@ def test_run_check_fail_with_paused_monitor():
     run_checks(monitor.project_id, monitor.slug)
 
     response: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
-    assert datetime.fromisoformat(response.next_due_at) > datetime.fromisoformat(time_to_check)
+    assert response.next_due_at > time_to_check
     monitor_id = str(monitor.project_id) + monitor.slug
     response: UptimeLog = UptimeLogTable.query(monitor_id)
     # does not have item because no log is created since the monitor is paused

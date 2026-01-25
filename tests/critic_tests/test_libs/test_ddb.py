@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 
 from critic.models import UptimeMonitorModel
@@ -23,10 +25,7 @@ class TestDDB:
             'realert_interval_mins': 60,
         }
 
-        # Put data in
         UptimeMonitorTable.put(IN_DATA)
-
-        # Get it back out
         out_data = UptimeMonitorTable.get('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474', 'my-monitor')
 
         # Check one of the values to make sure it's what we expect
@@ -89,3 +88,8 @@ def test_query_from_monitor_table():
     out_data = UptimeMonitorTable.query('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474')
     assert len(out_data) == 1
     assert str(out_data[0].url) == 'https://example.com/health'
+
+
+def test_serialize_unaware_dt():
+    with pytest.raises(ValueError, match='must be timezone aware'):
+        UptimeMonitorTable.get_due_since(datetime.now())
