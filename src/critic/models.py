@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import Any
+from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, Field, HttpUrl, field_validator
 
@@ -18,7 +19,7 @@ class MonitorState(str, Enum):
 
 
 class UptimeMonitorModel(BaseModel):
-    project_id: str
+    project_id: UUID
     slug: str
     state: MonitorState = MonitorState.new
     url: HttpUrl
@@ -42,12 +43,11 @@ class UptimeMonitorModel(BaseModel):
 
 
 class UptimeLog(BaseModel):
-    monitor_id: str  # for now we just combine the monitor and slug
+    monitor_id: str  # for now we just combine the project_id and slug
     timestamp: str
     status: MonitorState
     resp_code: int | None
     latency_secs: float | None
-    GSI_PK: str = Field(default=CONSTANT_GSI_PK)
 
 
 class ProjectMonitors(BaseModel):

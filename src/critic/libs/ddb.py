@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 import os
+from uuid import UUID
 
 from boto3 import client
 from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
@@ -42,6 +43,9 @@ class Serializer:
     def float_to_decimal(value):
         if isinstance(value, float):
             return Decimal(str(value))
+
+        if isinstance(value, UUID):
+            return str(value)
 
         if isinstance(value, list):
             return [Serializer.float_to_decimal(v) for v in value]

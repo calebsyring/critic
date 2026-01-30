@@ -39,7 +39,7 @@ dev = [
     "env-config-cli>=0.20250626.2",
     'hatch',
     "pytest-httpx>=0.36.0",
-    "ruff==0.14.14",
+    "ruff",
 ]
 # Used by nox
 pytest = [

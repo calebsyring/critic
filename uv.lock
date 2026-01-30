@@ -485,7 +485,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-httpx", specifier = ">=0.36.0" },
     { name = "respx", specifier = ">=0.21" },
-    { name = "ruff", specifier = "==0.14.14" },
+    { name = "ruff" },
 ]
 nox = [{ name = "nox" }]
 pre-commit = [

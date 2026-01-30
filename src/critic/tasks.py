@@ -43,7 +43,7 @@ def run_checks(monitor_id: str, monitor_slug: str):
     # if paused update the time and return
     if monitor.state == MonitorState.paused:
         monitor_table.update_item(
-            Key={'project_id': monitor.project_id, 'slug': monitor.slug},
+            Key={'project_id': str(monitor.project_id), 'slug': monitor.slug},
             UpdateExpression='SET next_due_at = :n',
             ExpressionAttributeValues={':n': monitor.next_due_at.isoformat()},
         )
@@ -81,7 +81,7 @@ def run_checks(monitor_id: str, monitor_slug: str):
 
     # update ddb, should only need to send keys, state and nextdue
     monitor_table.update_item(
-        Key={'project_id': monitor.project_id, 'slug': monitor.slug},
+        Key={'project_id': str(monitor.project_id), 'slug': monitor.slug},
         UpdateExpression='SET #state = :s, next_due_at = :n, consecutive_fails = :c',
         # we will need to redefine #state to the state category used above because state is a
         # reserved word for ddb
@@ -95,7 +95,7 @@ def run_checks(monitor_id: str, monitor_slug: str):
 
     response_code = response.status_code if response else None
     # update logs
-    monitor_id: str = monitor.project_id + monitor.slug
+    monitor_id: str = str(monitor.project_id) + monitor.slug
     uptime_log = UptimeLog(
         monitor_id=(monitor_id),
         timestamp=logtime_stamp,

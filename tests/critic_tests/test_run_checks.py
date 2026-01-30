@@ -31,7 +31,7 @@ def test_run_checks(caplog, httpx_mock):
     assert response.next_due_at > time_to_check
     assert response.consecutive_fails == 0
 
-    monitor_id = monitor.project_id + monitor.slug
+    monitor_id = str(monitor.project_id) + monitor.slug
     response: UptimeLog = UptimeLogTable.query(monitor_id)[-1]
 
     # check logging stuff
