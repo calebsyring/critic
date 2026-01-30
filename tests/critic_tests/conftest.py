@@ -40,7 +40,11 @@ def moto_for_unit_tests(request):
         clear_tables()
     else:
         # Unit test → activate moto
+        # Set default env vars for moto if not already set
+        os.environ.setdefault('AWS_DEFAULT_REGION', 'us-east-1')
+        os.environ.setdefault('CRITIC_NAMESPACE', 'critic-test-')
         with mock_aws():
+            ddb_module._ddb_client = None  # Reset cached client before tables are created
             create_tables()
             yield
     # The DDB module is designed to cache the client. When we're testing unit tests and
