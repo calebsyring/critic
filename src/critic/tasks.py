@@ -2,11 +2,9 @@ from datetime import UTC, datetime, timedelta
 import logging
 import time
 
-import boto3
 import httpx
 import mu
 
-from critic.libs.ddb import UPTIME_MONITOR
 from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
 from critic.tables import UptimeLogTable, UptimeMonitorTable
 
@@ -35,17 +33,13 @@ def assertions_pass(monitor: UptimeMonitorModel, repsonse: httpx.Response):
 def run_checks(monitor_id: str, monitor_slug: str):
     monitor: UptimeMonitorModel = UptimeMonitorTable.get(monitor_id, monitor_slug)
     log.info(f'Starting check for monitor: {monitor}')
-    dynamodb = boto3.resource('dynamodb')
-    monitor_table = dynamodb.Table(UptimeMonitorTable.namespace(UPTIME_MONITOR))
-
-    monitor.next_due_at = monitor.next_due_at + timedelta(minutes=monitor.frequency_mins)
 
     # if paused update the time and return
     if monitor.state == MonitorState.paused:
-        monitor_table.update_item(
-            Key={'project_id': str(monitor.project_id), 'slug': monitor.slug},
-            UpdateExpression='SET next_due_at = :n',
-            ExpressionAttributeValues={':n': monitor.next_due_at.isoformat()},
+        UptimeMonitorTable.update(
+            monitor.project_id,
+            monitor.slug,
+            next_due_at=monitor.next_due_at + timedelta(minutes=monitor.frequency_mins),
         )
         return
 
@@ -64,33 +58,24 @@ def run_checks(monitor_id: str, monitor_slug: str):
             time_to_ping = None
 
     # check response and update state, this will need to work with assertions later on
-    if assertions_pass(monitor, response):
-        monitor.state = MonitorState.up
-        monitor.consecutive_fails = 0
-    else:
-        monitor.consecutive_fails += 1
-        if monitor.consecutive_fails >= monitor.failures_before_alerting:
-            monitor.state = MonitorState.down
+    state = MonitorState.up
+    consecutive_fails = 0
+    if not assertions_pass(monitor, response):
+        state = MonitorState.down
+        consecutive_fails = monitor.consecutive_fails + 1
+        if consecutive_fails >= monitor.failures_before_alerting:
             if monitor.alert_slack_channels:
                 send_slack_alerts(monitor)
             if monitor.alert_emails:
                 send_email_alerts(monitor)
 
-    # this might be correct for the tzinfo?
-    logtime_stamp = datetime.now(tz=UTC).isoformat()
-
     # update ddb, should only need to send keys, state and nextdue
-    monitor_table.update_item(
-        Key={'project_id': str(monitor.project_id), 'slug': monitor.slug},
-        UpdateExpression='SET #state = :s, next_due_at = :n, consecutive_fails = :c',
-        # we will need to redefine #state to the state category used above because state is a
-        # reserved word for ddb
-        ExpressionAttributeNames={'#state': 'state'},
-        ExpressionAttributeValues={
-            ':s': monitor.state,
-            ':n': monitor.next_due_at.isoformat(),
-            ':c': monitor.consecutive_fails,
-        },
+    UptimeMonitorTable.update(
+        monitor.project_id,
+        monitor.slug,
+        state=state,
+        consecutive_fails=consecutive_fails,
+        next_due_at=monitor.next_due_at + timedelta(minutes=monitor.frequency_mins),
     )
 
     response_code = response.status_code if response else None
@@ -98,7 +83,7 @@ def run_checks(monitor_id: str, monitor_slug: str):
     monitor_id: str = str(monitor.project_id) + monitor.slug
     uptime_log = UptimeLog(
         monitor_id=(monitor_id),
-        timestamp=logtime_stamp,
+        timestamp=datetime.now(UTC),
         status=monitor.state,
         resp_code=response_code,
         latency_secs=time_to_ping,
