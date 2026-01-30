@@ -1,6 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
 import os
+from typing import Any
+from uuid import UUID
 
 from boto3 import client
 from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
@@ -11,7 +13,6 @@ from critic.libs.dt import to_utc
 
 # https://www.reddit.com/r/aws/comments/cwams9/dynamodb_i_need_to_sort_whole_table_by_range_how/
 CONSTANT_GSI_PK = 'bogus'
-
 _ddb_client = None
 
 
@@ -42,6 +43,9 @@ class Serializer:
     def float_to_decimal(value):
         if isinstance(value, float):
             return Decimal(str(value))
+
+        if isinstance(value, UUID):
+            return str(value)
 
         if isinstance(value, list):
             return [Serializer.float_to_decimal(v) for v in value]
@@ -85,6 +89,11 @@ class Table:
         plain = inst.model_dump(mode='json', exclude_none=True)
         return serialize(plain)
 
+    @classmethod
+    def ddb_to_model(cls, item: dict) -> BaseModel:
+        """Convert a DynamoDB item to a Pydantic model instance."""
+        return cls.model(**deserialize(item))
+
     @staticmethod
     def namespace(table_name: str) -> str:
         return f'{table_name}-{os.environ["CRITIC_NAMESPACE"]}'
@@ -98,6 +107,15 @@ class Table:
         return cls.namespace(cls.base_name)
 
     @classmethod
+    def key(cls, partition_value: Any, sort_value: Any | None = None) -> dict:
+        key = {cls.partition_key: partition_value}
+        if (cls.sort_key is None) is not (sort_value is None):
+            raise ValueError('Please make sure sort_value is provided iff table has a sort key.')
+        if cls.sort_key is not None:
+            key[cls.sort_key] = sort_value
+        return serialize(key)
+
+    @classmethod
     def put(cls, data: dict | BaseModel):
         if isinstance(data, dict):
             data = cls.model(**data)
@@ -105,17 +123,52 @@ class Table:
         client.put_item(TableName=cls.name(), Item=cls.model_to_ddb(data))
 
     @classmethod
-    def get(cls, partition_value: str | int, sort_value: str | int | None = None):
-        # Construct key
-        key = {cls.partition_key: partition_value}
-        if (cls.sort_key is None) is not (sort_value is None):
-            raise ValueError('Please make sure sort_value is provided iff table has a sort key.')
-        if cls.sort_key is not None:
-            key[cls.sort_key] = sort_value
-
-        # Get item
-        item = get_client().get_item(
+    def get(cls, partition_value: Any, sort_value: Any | None = None) -> BaseModel | None:
+        response = get_client().get_item(
             TableName=cls.name(),
-            Key=serialize(key),
-        )['Item']
-        return cls.model(**deserialize(item))
+            Key=cls.key(partition_value, sort_value),
+        )
+        return cls.ddb_to_model(response['Item']) if 'Item' in response else None
+
+    @classmethod
+    def query(cls, partition_value: Any) -> list[BaseModel]:
+        """Query for all items with the given partition key."""
+        # We use aliases for the partition key to avoid reserved word conflicts
+        pk_alias = f'#{cls.partition_key}'
+
+        response = get_client().query(
+            TableName=cls.name(),
+            KeyConditionExpression=f'{pk_alias} = :pk',
+            ExpressionAttributeNames={pk_alias: cls.partition_key},
+            ExpressionAttributeValues=serialize({':pk': partition_value}),
+        )
+
+        items = response.get('Items', [])
+        return [cls.model(**deserialize(item)) for item in items]
+
+    @classmethod
+    def update(
+        cls,
+        partition_value: Any,
+        sort_value: Any | None = None,
+        **updates,
+    ):
+        if not updates:
+            raise ValueError('No updates provided')
+        updates = serialize(updates)
+
+        # Alias every field
+        expr_attr_names = {f'#{k}': k for k in updates}
+        expr_attr_values = {f':{k}': v for k, v in updates.items()}
+
+        # Build SET expression
+        set_clauses = [f'#{k} = :{k}' for k in updates]
+        update_expr = 'SET ' + ', '.join(set_clauses)
+
+        get_client().update_item(
+            TableName=cls.name(),
+            Key=cls.key(partition_value, sort_value),
+            UpdateExpression=update_expr,
+            ExpressionAttributeNames=expr_attr_names,
+            ExpressionAttributeValues=expr_attr_values,
+        )

@@ -24,6 +24,7 @@ class UptimeMonitorModel(BaseModel):
     state: MonitorState = MonitorState.new
     url: HttpUrl
     frequency_mins: int = Field(ge=1)
+    consecutive_fails: int = 0
     next_due_at: AwareDatetime
     timeout_secs: float = Field(ge=0)
     # TODO: assertions should probably become its own model
@@ -39,6 +40,14 @@ class UptimeMonitorModel(BaseModel):
     def validate_next_due_at(cls, v: datetime) -> datetime:
         """Normalize to UTC"""
         return to_utc(v)
+
+
+class UptimeLog(BaseModel):
+    monitor_id: str  # for now we just combine the project_id and slug
+    timestamp: AwareDatetime
+    status: MonitorState
+    resp_code: int | None
+    latency_secs: float | None
 
 
 class ProjectMonitors(BaseModel):

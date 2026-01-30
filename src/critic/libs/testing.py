@@ -31,8 +31,8 @@ def create_tables():
             {'AttributeName': 'next_due_at', 'AttributeType': 'S'},
         ],
         KeySchema=[
-            {'AttributeName': 'project_id', 'KeyType': 'HASH'},
-            {'AttributeName': 'slug', 'KeyType': 'RANGE'},
+            {'AttributeName': 'project_id', 'KeyType': 'HASH'},  # Partition key
+            {'AttributeName': 'slug', 'KeyType': 'RANGE'},  # Sort key
         ],
         GlobalSecondaryIndexes=[
             {
