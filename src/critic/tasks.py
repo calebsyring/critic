@@ -77,7 +77,7 @@ def run_checks(monitor_id: str, monitor_slug: str):
                 send_email_alerts(monitor)
 
     # this might be correct for the tzinfo?
-    logtime_stamp = datetime.now(tz=monitor.next_due_at.tzinfo).isoformat()
+    logtime_stamp = datetime.now(tz=UTC).isoformat()
 
     # update ddb, should only need to send keys, state and nextdue
     monitor_table.update_item(

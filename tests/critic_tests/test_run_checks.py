@@ -2,19 +2,17 @@ import logging
 
 import httpx
 
+from critic.libs.testing import UptimeMonitorFactory
 from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
 from critic.tables import UptimeLogTable, UptimeMonitorTable
 from critic.tasks import run_checks
-from critic_tests.test_libs.Model_factory import UptimeMonitorFactory
 
 
 def test_run_checks(caplog, httpx_mock):
-    monitor: UptimeMonitorModel = UptimeMonitorFactory.build(
-        consecutive_fails=1,
-        failures_before_alerting=2,
-        state=MonitorState.up,
+    monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
+        consecutive_fails=1, failures_before_alerting=2, state=MonitorState.up
     )
-    UptimeMonitorTable.put(monitor)
+
     caplog.set_level(logging.INFO)
 
     time_to_check = monitor.next_due_at
@@ -41,12 +39,11 @@ def test_run_checks(caplog, httpx_mock):
 
 
 def test_run_check_fail_with_consec_fails_above_threshold(httpx_mock):
-    monitor: UptimeMonitorModel = UptimeMonitorFactory.build(
+    monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
         consecutive_fails=1,
         failures_before_alerting=2,
         state=MonitorState.up,
     )
-    UptimeMonitorTable.put(monitor)
 
     httpx_mock.add_exception(httpx.TimeoutException('Connection timed out'))
     run_checks(monitor.project_id, monitor.slug)
@@ -65,12 +62,11 @@ def test_run_check_fail_with_consec_fails_above_threshold(httpx_mock):
 
 
 def test_run_check_fail_with_consec_fails_below_threshold(httpx_mock):
-    monitor: UptimeMonitorModel = UptimeMonitorFactory.build(
+    monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
         consecutive_fails=0,
         failures_before_alerting=2,
         state=MonitorState.up,
     )
-    UptimeMonitorTable.put(monitor)
 
     httpx_mock.add_exception(httpx.TimeoutException('Connection timed out'))
 
@@ -90,13 +86,12 @@ def test_run_check_fail_with_consec_fails_below_threshold(httpx_mock):
 
 # what are we doing for next due time when paused?
 def test_run_check_fail_with_paused_monitor():
-    monitor: UptimeMonitorModel = UptimeMonitorFactory.build(
+    monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
         consecutive_fails=0,
         failures_before_alerting=2,
         state=MonitorState.paused,
     )
     time_to_check = monitor.next_due_at
-    UptimeMonitorTable.put(monitor)
 
     run_checks(monitor.project_id, monitor.slug)
 
