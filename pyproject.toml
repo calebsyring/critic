@@ -26,7 +26,7 @@ dependencies = [
 
 
 [project.scripts]
-'critic' = 'critic.cli:main'
+'critic' = 'critic.cli:cli'
 
 
 [dependency-groups]

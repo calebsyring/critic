@@ -172,3 +172,10 @@ class Table:
             ExpressionAttributeNames=expr_attr_names,
             ExpressionAttributeValues=expr_attr_values,
         )
+
+    @classmethod
+    def delete(cls, partition_value: Any, sort_value: Any | None = None):
+        get_client().delete_item(
+            TableName=cls.name(),
+            Key=cls.key(partition_value, sort_value),
+        )

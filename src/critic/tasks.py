@@ -100,7 +100,7 @@ def run_checks(monitor_id: str, monitor_slug: str):
 def run_due_checks():
     """
     This task is invoked by an EventBridge rule once a minute. It queries for all monitors that are
-    due and invokes `run_check` for each one.
+    due and invokes `run_checks` for each one.
     """
     now = datetime.now(UTC)
     log.info(f'Triggering due checks at {now.isoformat()}')
@@ -110,7 +110,7 @@ def run_due_checks():
     if now.second >= 30:
         rounded_now = rounded_now + timedelta(minutes=1)
 
-    # Trigger `run_check` for each due monitor.
+    # Trigger `run_checks` for each due monitor.
     due_monitors = UptimeMonitorTable.get_due_since(rounded_now)
     for monitor in due_monitors:
         run_checks.invoke(str(monitor.project_id), monitor.slug)

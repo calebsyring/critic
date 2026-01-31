@@ -13,6 +13,7 @@ profile:
     MU_CONFIG_PATH: '{env.CRITIC_SRC}/mu-dev.toml'
   qa:
     AWS_PROFILE: 'critic-qa'
+    CRITIC_NAMESPACE: 'qa'
     MU_DEFAULT_ENV: 'qa'
     MU_CONFIG_PATH: '{env.CRITIC_SRC}/mu-qa.toml'
   prod:
