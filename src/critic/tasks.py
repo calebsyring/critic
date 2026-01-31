@@ -80,9 +80,8 @@ def run_checks(monitor_id: str, monitor_slug: str):
 
     response_code = response.status_code if response else None
     # update logs
-    monitor_id: str = str(monitor.project_id) + monitor.slug
     uptime_log = UptimeLog(
-        monitor_id=(monitor_id),
+        monitor_id=f'{monitor.project_id}/{monitor.slug}',
         timestamp=datetime.now(UTC),
         status=monitor.state,
         resp_code=response_code,
