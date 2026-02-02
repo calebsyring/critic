@@ -47,7 +47,7 @@ class TestRunChecks:
         assert response.next_due_at > time_to_check
         assert response.consecutive_fails == 0
 
-        monitor_id = str(monitor.project_id) + monitor.slug
+        monitor_id = f'{monitor.project_id}/{monitor.slug}'
         response: UptimeLog = UptimeLogTable.query(monitor_id)[-1]
 
         # check logging stuff
@@ -70,7 +70,7 @@ class TestRunChecks:
         assert response.state == MonitorState.down
         assert response.consecutive_fails == 2
 
-        monitor_id = str(monitor.project_id) + monitor.slug
+        monitor_id = f'{monitor.project_id}/{monitor.slug}'
         response: UptimeLog = UptimeLogTable.query(monitor_id)[-1]
         # log should have resp of 0 since there was a timeout, and a latency of -1
         assert response.status == MonitorState.down
@@ -92,7 +92,7 @@ class TestRunChecks:
         assert response.state == MonitorState.down
         assert response.consecutive_fails == 1
 
-        monitor_id = str(monitor.project_id) + monitor.slug
+        monitor_id = f'{monitor.project_id}/{monitor.slug}'
         response: UptimeLog = UptimeLogTable.query(monitor_id)[-1]
         # log should have resp of 0 since there was a timeout, and a latency of -1
         assert response.status == MonitorState.up
@@ -112,7 +112,7 @@ class TestRunChecks:
 
         response: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
         assert response.next_due_at > time_to_check
-        monitor_id = str(monitor.project_id) + monitor.slug
+        monitor_id = f'{monitor.project_id}/{monitor.slug}'
         response: UptimeLog = UptimeLogTable.query(monitor_id)
         # does not have item because no log is created since the monitor is paused
         assert response == []
