@@ -1,16 +1,11 @@
 import logging
 
-from flask import Flask
+from flask import Flask, render_template
 
 
 log = logging.getLogger()
 
 app = Flask(__name__)
-
-
-@app.route('/')
-def hello_world():
-    return '<p>Hello, <strong>World</strong>!</p>'
 
 
 @app.route('/log')
@@ -26,3 +21,22 @@ def logs_example():
 @app.route('/error')
 def error():
     raise RuntimeError('Deliberate runtime error')
+
+
+@app.route('/')
+def dashboard():
+    return render_template('dashboard.html')
+
+
+@app.route('/create')
+def create_monitor():
+    return render_template('create.html')
+
+
+@app.route('/delete')
+def delete_monitor():
+    return render_template('delete.html')
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
