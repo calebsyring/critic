@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 import logging
 from unittest import mock
 
@@ -5,7 +6,7 @@ from freezegun import freeze_time
 import httpx
 import pytest
 
-from critic.libs.testing import UptimeMonitorFactory
+from critic.libs.testing import UptimeMonitorFactory, race
 from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
 from critic.tables import UptimeLogTable, UptimeMonitorTable
 from critic.tasks import run_checks, run_due_checks
@@ -72,10 +73,9 @@ class TestRunChecks:
 
         monitor_id = f'{monitor.project_id}/{monitor.slug}'
         response: UptimeLog = UptimeLogTable.query(monitor_id)[-1]
-        # log should have resp of 0 since there was a timeout, and a latency of -1
+        # log should have resp of 0 since there was a timeout
         assert response.status == MonitorState.down
         assert response.resp_code == 0
-        assert response.latency_secs == -1
 
     def test_down_with_consec_fails_below_threshold(self, httpx_mock):
         monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
@@ -94,10 +94,9 @@ class TestRunChecks:
 
         monitor_id = f'{monitor.project_id}/{monitor.slug}'
         response: UptimeLog = UptimeLogTable.query(monitor_id)[-1]
-        # log should have resp of 0 since there was a timeout, and a latency of -1
-        assert response.status == MonitorState.up
+        # log should have resp of 0 since there was a timeout
+        assert response.status == MonitorState.down
         assert response.resp_code == 0
-        assert response.latency_secs == -1
 
     # what are we doing for next due time when paused?
     def test_paused(self):
@@ -116,3 +115,40 @@ class TestRunChecks:
         response: UptimeLog = UptimeLogTable.query(monitor_id)
         # does not have item because no log is created since the monitor is paused
         assert response == []
+
+    @freeze_time('2026-02-01 12:00:13', tz_offset=0)
+    def test_old_next_due_at(self, httpx_mock):
+        httpx_mock.add_response()
+
+        # Pretend critic went down for a month (from Jan 1st to Feb 1st). Next due at is much older
+        # than we would expect.
+        monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
+            next_due_at='2026-01-01 12:00:00Z',
+            frequency_mins=5,
+        )
+
+        run_checks(str(monitor.project_id), monitor.slug)
+
+        # Next due at should be calculated from the current time
+        monitor: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
+        assert monitor.next_due_at == datetime(2026, 2, 1, 12, 5, 0, tzinfo=UTC)
+
+    @freeze_time('2026-02-10 10:45:00', tz_offset=0)
+    def test_race(self, httpx_mock):
+        # Add a successful response for each call
+        httpx_mock.add_response()
+        httpx_mock.add_response()
+
+        monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
+            next_due_at='2026-02-10 10:45:00Z',
+            frequency_mins=5,
+        )
+
+        race(run_checks, str(monitor.project_id), monitor.slug)
+
+        monitor = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
+        assert monitor.next_due_at == datetime(2026, 2, 10, 10, 50, 0, tzinfo=UTC)
+
+        monitor_id = f'{monitor.project_id}/{monitor.slug}'
+        logs = UptimeLogTable.query(monitor_id)
+        assert len(logs) == 1

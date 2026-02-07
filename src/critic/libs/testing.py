@@ -1,3 +1,6 @@
+from collections.abc import Callable
+import threading
+
 import boto3
 from polyfactory.factories.pydantic_factory import ModelFactory
 from pydantic import BaseModel
@@ -100,6 +103,27 @@ def _clear_table(table_name: str):
 def clear_tables():
     for table_name in [Table.namespace(t) for t in ('Project', 'UptimeMonitor', 'UptimeLog')]:
         _clear_table(table_name)
+
+
+def race(func: Callable, *args, **kwargs):
+    """
+    Runs the given function twice at the same time. Useful for testing race conditions.
+    """
+    # Barrier forces threads to start together
+    barrier = threading.Barrier(2)
+
+    def worker():
+        barrier.wait()
+        func(*args, **kwargs)
+
+    t1 = threading.Thread(target=worker)
+    t2 = threading.Thread(target=worker)
+
+    t1.start()
+    t2.start()
+
+    t1.join()
+    t2.join()
 
 
 class PutMixin:
