@@ -3,5 +3,34 @@
 {% block title %}Create Project{% endblock %}
 
 {% block content %}
-<h1>Create Project</h1>
+<div class="d-flex justify-content-center">
+    <div class="card shadow-sm w-100" style="max-width: 720px;">
+        <div class="card-body p-4 p-md-5">
+            <div class="mb-3 text-center">
+                <h1 class="h3 mb-2">Create New Project</h1>
+                <p class="text-secondary mb-0">Enter a name for your monitoring project</p>
+            </div>
+
+            <form method="post" class="mt-4">
+                <div class="mb-3">
+                    <label class="form-label">Project Name</label>
+                    <input
+                        class="form-control form-control-lg"
+                        type="text"
+                        name="project_name"
+                        placeholder="e.g., Production API"
+                    >
+                </div>
+
+                <button class="btn btn-secondary w-100 py-2 mb-3" type="submit">
+                    Create Project
+                </button>
+
+                <a class="btn btn-outline-secondary w-100 py-2" href="/">
+                    Cancel
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

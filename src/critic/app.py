@@ -65,9 +65,8 @@ def pause_monitor(monitor_id):
     return render_template('pause_monitor.html', monitor_id=monitor_id)
 
 
-@app.route('/logout', methods=['POST'])
+@app.route('/logout')
 def logout():
-    """This will redirect the user back to dashboard for now."""
     return redirect(url_for('dashboard'))
 
 
