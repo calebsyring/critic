@@ -12,19 +12,14 @@
             </div>
 
             <form method="post" class="mt-4">
+                {{ form.hidden_tag() }}
+
                 <div class="mb-3">
-                    <label class="form-label">Project Name</label>
-                    <input
-                        class="form-control form-control-lg"
-                        type="text"
-                        name="project_name"
-                        placeholder="e.g., Production API"
-                    >
+                    {{ form.name.label(class="form-label") }}
+                    {{ form.name(class="form-control form-control-lg", placeholder="e.g., Production API") }}
                 </div>
 
-                <button class="btn btn-secondary w-100 py-2 mb-3" type="submit">
-                    Create Project
-                </button>
+                {{ form.submit(class="btn btn-secondary w-100 py-2 mb-3") }}
 
                 <a class="btn btn-outline-secondary w-100 py-2" href="/">
                     Cancel

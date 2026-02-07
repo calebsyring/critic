@@ -5,6 +5,31 @@
 {% block content %}
 <h1 class="h4 mb-4">Dashboard</h1>
 
+{% if projects %}
+<div class="vstack gap-3 mb-4">
+    {% for project in projects %}
+    <div class="card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                    <div class="fw-semibold">{{ project.name }}</div>
+                    <div class="text-secondary small">
+                        Project UUID:
+                        <span class="badge text-bg-light border">{{ project.id }}</span>
+                    </div>
+                    <div class="text-secondary mt-2">0 monitors</div>
+                    <div class="text-secondary">No monitors in this project</div>
+                </div>
+                <form method="post" action="/project/{{ project.id }}/delete">
+                    <button class="btn btn-danger btn-sm" type="submit">Delete Project</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
 <div class="mt-4">
     <a class="btn btn-dark px-4" href="/create">+ Create New Project</a>
 </div>
