@@ -146,32 +146,47 @@ class Table:
         items = response.get('Items', [])
         return [cls.model(**deserialize(item)) for item in items]
 
+    @staticmethod
+    def alias_exp(data: dict, suffix: str = '') -> tuple[dict, dict, list]:
+        """
+        Creates aliases for all keys and values in the data. Accepts a suffix for differentiation
+        when you want to use the same key with different values in different expressions.
+        """
+        data = serialize(data)
+        # Map aliased keys to actual keys (typically passed as ExpressionAttributeNames)
+        names = {f'#{k}{suffix}': k for k in data}
+        # Map aliased values to actual values (typically passed as ExpressionAttributeValues)
+        values = {f':{k}{suffix}': v for k, v in data.items()}
+        # Map aliased key-value pairs in DDB expression format (typically passed in *Expression)
+        clauses = [f'#{k}{suffix} = :{k}{suffix}' for k in data]
+        return names, values, clauses
+
     @classmethod
     def update(
         cls,
         partition_value: Any,
         sort_value: Any | None = None,
-        **updates,
+        updates: dict | None = None,
+        condition: dict | None = None,
     ):
         if not updates:
             raise ValueError('No updates provided')
-        updates = serialize(updates)
 
-        # Alias every field
-        expr_attr_names = {f'#{k}': k for k in updates}
-        expr_attr_values = {f':{k}': v for k, v in updates.items()}
+        expr_attr_names, expr_attr_values, set_clauses = cls.alias_exp(updates, 'update')
+        kwargs = {
+            'TableName': cls.name(),
+            'Key': cls.key(partition_value, sort_value),
+            'UpdateExpression': 'SET ' + ', '.join(set_clauses),
+            'ExpressionAttributeNames': expr_attr_names,
+            'ExpressionAttributeValues': expr_attr_values,
+        }
+        if condition:
+            cond_names, cond_values, cond_clauses = cls.alias_exp(condition, 'cond')
+            kwargs['ExpressionAttributeNames'] |= cond_names
+            kwargs['ExpressionAttributeValues'] |= cond_values
+            kwargs['ConditionExpression'] = ' AND '.join(cond_clauses)
 
-        # Build SET expression
-        set_clauses = [f'#{k} = :{k}' for k in updates]
-        update_expr = 'SET ' + ', '.join(set_clauses)
-
-        get_client().update_item(
-            TableName=cls.name(),
-            Key=cls.key(partition_value, sort_value),
-            UpdateExpression=update_expr,
-            ExpressionAttributeNames=expr_attr_names,
-            ExpressionAttributeValues=expr_attr_values,
-        )
+        get_client().update_item(**kwargs)
 
     @classmethod
     def delete(cls, partition_value: Any, sort_value: Any | None = None):

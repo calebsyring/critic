@@ -31,7 +31,9 @@ class UptimeMonitorModel(BaseModel):
     state: MonitorState = Field(default=MonitorState.new)
     frequency_mins: int = Field(ge=1, default=1)
     consecutive_fails: int = Field(ge=0, default=0)
-    next_due_at: AwareDatetime = Field(default_factory=lambda: datetime.now(UTC))
+    next_due_at: AwareDatetime = Field(
+        default_factory=lambda: datetime.now(UTC).replace(second=0, microsecond=0)
+    )
     timeout_secs: float = Field(ge=0, default=5)
     assertions: dict[str, Any] = Field(default_factory=dict)
     failures_before_alerting: int = Field(ge=1, default=1)
@@ -44,6 +46,8 @@ class UptimeMonitorModel(BaseModel):
     @classmethod
     def validate_next_due_at(cls, v: datetime) -> datetime:
         """Normalize to UTC"""
+        if v.second or v.microsecond:
+            raise ValueError('next_due_at must be no more precise than minutes')
         return to_utc(v)
 
 
