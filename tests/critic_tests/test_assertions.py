@@ -21,3 +21,20 @@ class TestAssertions:
         with pytest.raises(ValueError, match='has more or less than 3 parts'):
             data = {'assertion_string': 'status_code'}
             Assertion(**data)
+
+    def test_assertion_validation_correct(self):
+        data = {'assertion_string': 'status_code > 200'}
+        assertion = Assertion(**data)
+        assert assertion.assertion_string == 'status_code > 200'
+        assert assertion.assertion_operator == '>'
+        assert assertion.assertion_expected_value == 200
+
+        data = {'assertion_string': 'response_time < 20.2'}
+        assertion = Assertion(**data)
+        assert assertion.assertion_operator == '<'
+        assert assertion.assertion_expected_value == 20.2
+
+    def test_assertion_serialize_correctly(self):
+        data = {'assertion_string': 'status_code > 200'}
+        assertion = Assertion(**data)
+        assert assertion.serialize_model() == 'status_code > 200'

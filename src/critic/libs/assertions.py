@@ -2,16 +2,24 @@ from collections.abc import Callable
 from enum import Enum
 import operator
 import re
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import httpx
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, model_serializer, model_validator
 
 
 class AssertionSubject(str, Enum):
     STATUS_CODE = 'status_code'
     BODY = 'body'
     RESPONSE_TIME = 'response_time'
+
+    def cast(self, value: str) -> Any:
+        # Casting logic here is simpler than in the validation method
+        if self == AssertionSubject.STATUS_CODE:
+            return int(value)
+        if self == AssertionSubject.RESPONSE_TIME:
+            return float(value)
+        return value
 
 
 """
@@ -24,7 +32,7 @@ class Assertion(BaseModel):
     assertion_string: str
     assertion_object: AssertionSubject
     assertion_operator: str
-    assertion_actual_value: str
+    assertion_expected_value: str | int | float
 
     # Shared by all
     _OPS: ClassVar[dict[str, Callable]] = {
@@ -60,18 +68,30 @@ class Assertion(BaseModel):
                 raise ValueError(
                     f'Invalid assertion format: {raw_string} has more or less than 3 parts'
                 )
-            if parts[0] not in AssertionSubject:
+            try:
+                subject = AssertionSubject(parts[0])
+            except ValueError as e:
                 raise ValueError(
                     f'Invalid assertion format: {parts[0]} is not a valid Assertion Subject'
-                )
+                ) from e
 
             if parts[1] not in cls._OPS:
                 raise ValueError(f'Invalid assertion format: {parts[1]} is not a valid operator')
+
+            try:
+                converted_value = subject.cast(parts[2])
+            except ValueError as e:
+                raise ValueError(f"Value '{parts[2]}' is not valid for {subject.value}") from e
+
             data['assertion_object'] = parts[0]
             data['assertion_operator'] = parts[1]
-            data['assertion_actual_value'] = parts[2]
+            data['assertion_expected_value'] = converted_value
 
         return data
+
+    @model_serializer(mode='plain')
+    def serialize_model(self) -> str:
+        return f'{self.assertion_string}'
 
     # Return true and empty string if true and false with a string explaining what failed otherwise
     def evaluate(self, response: httpx.Response) -> tuple[bool, str]:
@@ -84,13 +104,13 @@ class Assertion(BaseModel):
         actual = None
         if self.assertion_object == AssertionSubject.STATUS_CODE:
             actual = response.status_code
-            expected = int(self.assertion_actual_value)
+            expected = int(self.assertion_expected_value)
         elif self.assertion_object == AssertionSubject.BODY:
             actual = response.text
-            expected = self.assertion_actual_value
+            expected = self.assertion_expected_value
         elif self.assertion_object == AssertionSubject.RESPONSE_TIME:
             actual = response.elapsed.total_seconds()
-            expected = float(self.assertion_actual_value)
+            expected = float(self.assertion_expected_value)
 
         try:
             success = op_func(actual, expected)
