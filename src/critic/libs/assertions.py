@@ -2,6 +2,7 @@ from collections.abc import Callable
 from enum import Enum
 import operator
 import re
+import shlex
 from typing import Any, ClassVar
 
 import httpx
@@ -43,7 +44,7 @@ class Assertion(BaseModel):
         '<=': operator.le,
         '>=': operator.ge,
         'contains': lambda a, b: b in a,
-        'not contains': lambda a, b: b not in a,
+        'not_contains': lambda a, b: b not in a,
         'matches': lambda a, b: bool(re.search(b, a)),
     }
 
@@ -54,20 +55,29 @@ class Assertion(BaseModel):
         if isinstance(data, dict) and 'assertion_string' in data:
             raw_string: str = data['assertion_string']
 
-            parts = raw_string.split(' ')
-
             """
             Things that can go wrong:
                 1. More than 3 parts
                 2. assertion subject must be one of the assertion subject possibilities
                 3. valid operator
                 4. expected value must map to the correct value that this will make
+                5. Must be able to parse correctly for body, which may be a string or regex
+            Parsing here will break the component into its 3 parts, since a body which may be
+            a string or a regex will be surrounded by ""'s it will be parsed as one part and we
+            can keep the 3 part format.
             """
+            try:
+                parts = shlex.split(raw_string)
+            except ValueError as e:
+                raise ValueError(
+                    f'Invalid assertion format: unable to parse quotes in {raw_string}'
+                ) from e
 
             if len(parts) != 3:
                 raise ValueError(
                     f'Invalid assertion format: {raw_string} has more or less than 3 parts'
                 )
+
             try:
                 subject = AssertionSubject(parts[0])
             except ValueError as e:
