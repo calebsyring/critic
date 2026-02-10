@@ -1,5 +1,7 @@
 from datetime import datetime
+from unittest import mock
 
+from botocore.exceptions import ClientError
 import pytest
 
 from critic.models import UptimeMonitorModel
@@ -67,29 +69,43 @@ class TestDDB:
         with pytest.raises(ValueError):
             UptimeMonitorTable.get('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474')
 
+    def test_query_from_monitor_table(self):
+        in_data = {
+            'project_id': '6033aa47-a9f7-4d7f-b7ff-a11ba9b34474',
+            'slug': 'my-monitor',
+            'url': 'https://example.com/health',
+            'frequency_mins': 5,
+            'consecutive_fails': 0,
+            'next_due_at': '2025-11-10T20:35:00Z',
+            'timeout_secs': 30,
+            'assertions': {'status_code': 200, 'body_contains': 'OK'},
+            'failures_before_alerting': 2,
+            'alert_slack_channels': ['#ops'],
+            'alert_emails': ['alerts@example.com'],
+            'realert_interval_mins': 60,
+        }
+        in_data = UptimeMonitorModel(**in_data)
+        UptimeMonitorTable.put(in_data)
+        out_data = UptimeMonitorTable.query('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474')
+        assert len(out_data) == 1
+        assert str(out_data[0].url) == 'https://example.com/health'
 
-def test_query_from_monitor_table():
-    in_data = {
-        'project_id': '6033aa47-a9f7-4d7f-b7ff-a11ba9b34474',
-        'slug': 'my-monitor',
-        'url': 'https://example.com/health',
-        'frequency_mins': 5,
-        'consecutive_fails': 0,
-        'next_due_at': '2025-11-10T20:35:00Z',
-        'timeout_secs': 30,
-        'assertions': {'status_code': 200, 'body_contains': 'OK'},
-        'failures_before_alerting': 2,
-        'alert_slack_channels': ['#ops'],
-        'alert_emails': ['alerts@example.com'],
-        'realert_interval_mins': 60,
-    }
-    in_data = UptimeMonitorModel(**in_data)
-    UptimeMonitorTable.put(in_data)
-    out_data = UptimeMonitorTable.query('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474')
-    assert len(out_data) == 1
-    assert str(out_data[0].url) == 'https://example.com/health'
+    def test_serialize_unaware_dt(self):
+        with pytest.raises(ValueError, match='must be timezone aware'):
+            UptimeMonitorTable.get_due_since(datetime.now())
 
+    def test_update_no_updates(self):
+        with pytest.raises(ValueError, match='No updates provided'):
+            UptimeMonitorTable.update('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474', 'my-monitor', {})
 
-def test_serialize_unaware_dt():
-    with pytest.raises(ValueError, match='must be timezone aware'):
-        UptimeMonitorTable.get_due_since(datetime.now())
+    @mock.patch('critic.libs.ddb.get_client')
+    def test_update_error_not_conditional(self, m_get_client):
+        # We supress conditional check errors. Make sure that doesn't inadvertently suppress other
+        # errors.
+        error = ClientError({'Error': {'Code': 'SomeOtherError'}}, 'update_item')
+        m_get_client.return_value.update_item.side_effect = error
+        with pytest.raises(ClientError) as excinfo:
+            UptimeMonitorTable.update(
+                '6033aa47-a9f7-4d7f-b7ff-a11ba9b34474', 'my-monitor', {'a': 1}
+            )
+        assert excinfo.value == error

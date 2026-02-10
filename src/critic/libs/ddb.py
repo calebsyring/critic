@@ -217,6 +217,7 @@ class Table:
         except ClientError as e:
             if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
                 return False
+            raise
         return True
 
     @classmethod
