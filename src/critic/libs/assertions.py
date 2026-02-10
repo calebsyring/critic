@@ -105,22 +105,20 @@ class Assertion(BaseModel):
 
     # Return true and empty string if true and false with a string explaining what failed otherwise
     def evaluate(self, response: httpx.Response) -> tuple[bool, str]:
-        op_func = self._OPS.get(self.assertion_operator)
+        op_func = self._OPS[self.assertion_operator]
 
         if not op_func:
             return False, f'Unknown operator: {self.assertion_operator}'
 
         # Get the actual value from the response based on the subject
         actual = None
+        expected = self.assertion_expected_value
         if self.assertion_object == AssertionSubject.STATUS_CODE:
             actual = response.status_code
-            expected = int(self.assertion_expected_value)
         elif self.assertion_object == AssertionSubject.BODY:
             actual = response.text
-            expected = self.assertion_expected_value
         elif self.assertion_object == AssertionSubject.RESPONSE_TIME:
-            actual = response.elapsed.total_seconds()
-            expected = float(self.assertion_expected_value)
+            actual = response.elapsed.total_seconds() * 1000
 
         try:
             success = op_func(actual, expected)
