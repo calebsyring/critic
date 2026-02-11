@@ -6,7 +6,7 @@ import time
 import httpx
 
 from critic.libs.dt import round_minute
-from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
+from critic.models import MonitorState, UptimeLogModel, UptimeMonitorModel
 from critic.tables import UptimeLogTable, UptimeMonitorTable
 
 
@@ -112,7 +112,7 @@ class UptimeCheck:
         """
         if self._put_log:
             raise Exception('Log already put! Do not call this method more than once in one run.')
-        uptime_log = UptimeLog(
+        uptime_log = UptimeLogModel(
             monitor_id=f'{self.monitor.project_id}/{self.monitor.slug}',
             timestamp=self.now,
             status=state,

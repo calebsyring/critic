@@ -18,7 +18,7 @@ class MonitorState(str, Enum):
     paused = 'paused'
 
 
-class Project(BaseModel):
+class ProjectModel(BaseModel):
     id: UUID
     name: str
 
@@ -51,7 +51,7 @@ class UptimeMonitorModel(BaseModel):
         return to_utc(v)
 
 
-class UptimeLog(BaseModel):
+class UptimeLogModel(BaseModel):
     monitor_id: str = Field(
         # Project ID and monitor slug, separated by a slash
         # pattern = UUID / slug
@@ -63,5 +63,5 @@ class UptimeLog(BaseModel):
     latency_secs: float | None
 
 
-class ProjectMonitors(BaseModel):
+class ProjectMonitorsModel(BaseModel):
     uptime: list[UptimeMonitorModel] = Field(default_factory=list)

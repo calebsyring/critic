@@ -2,12 +2,12 @@ from datetime import datetime
 
 from critic.libs.ddb import CONSTANT_GSI_PK, Table, deserialize, get_client, serialize
 
-from .models import Project, UptimeLog, UptimeMonitorModel
+from .models import ProjectModel, UptimeLogModel, UptimeMonitorModel
 
 
 class ProjectTable(Table):
     base_name = 'Project'
-    model = Project
+    model = ProjectModel
     partition_key = 'id'
 
 
@@ -35,6 +35,6 @@ class UptimeMonitorTable(Table):
 
 class UptimeLogTable(Table):
     base_name = 'UptimeLog'
-    model = UptimeLog
+    model = UptimeLogModel
     partition_key = 'monitor_id'
     sort_key = 'timestamp'
