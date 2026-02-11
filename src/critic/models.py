@@ -50,6 +50,10 @@ class UptimeMonitorModel(BaseModel):
             raise ValueError('next_due_at must be no more precise than minutes')
         return to_utc(v)
 
+    @property
+    def id(self) -> str:
+        return UptimeLogModel.monitor_id_from_parts(self.project_id, self.slug)
+
 
 class UptimeLogModel(BaseModel):
     monitor_id: str = Field(
@@ -59,8 +63,12 @@ class UptimeLogModel(BaseModel):
     )
     timestamp: AwareDatetime
     status: MonitorState
-    resp_code: int | None
-    latency_secs: float | None
+    resp_code: int
+    latency_secs: float
+
+    @staticmethod
+    def monitor_id_from_parts(project_id: UUID | str, slug: str) -> str:
+        return f'{project_id}/{slug}'
 
 
 class ProjectMonitorsModel(BaseModel):

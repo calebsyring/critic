@@ -1,6 +1,13 @@
 from datetime import datetime
 
-from critic.libs.ddb import CONSTANT_GSI_PK, Table, deserialize, get_client, serialize
+from critic.libs.ddb import (
+    CONSTANT_GSI_PK,
+    CascadeRelationship,
+    Table,
+    deserialize,
+    get_client,
+    serialize,
+)
 
 from .models import ProjectModel, UptimeLogModel, UptimeMonitorModel
 
@@ -10,12 +17,33 @@ class ProjectTable(Table):
     model = ProjectModel
     partition_key = 'id'
 
+    @classmethod
+    def cascade_relationships(cls) -> list[CascadeRelationship]:
+        return [
+            CascadeRelationship(
+                UptimeMonitorTable,
+                lambda pk, _sk: pk,
+                lambda m: (m.project_id, m.slug),
+            )
+        ]
+
 
 class UptimeMonitorTable(Table):
     base_name = 'UptimeMonitor'
     model = UptimeMonitorModel
     partition_key = 'project_id'
     sort_key = 'slug'
+
+    @classmethod
+    def cascade_relationships(cls) -> list[CascadeRelationship]:
+        return [
+            CascadeRelationship(
+                UptimeLogTable,
+                # TODO: have a universal function for this
+                lambda pk, sk: UptimeLogModel.monitor_id_from_parts(pk, sk),
+                lambda log: (log.monitor_id, log.timestamp),
+            )
+        ]
 
     @classmethod
     def get_due_since(cls, timestamp: datetime) -> list[UptimeMonitorModel]:

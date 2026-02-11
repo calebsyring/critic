@@ -1,3 +1,5 @@
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 import os
@@ -76,6 +78,15 @@ class Deserializer:
 
 serialize = Serializer()
 deserialize = Deserializer()
+
+
+@dataclass
+class CascadeRelationship:
+    child_table: type['Table']
+    # Given the parent's partition and sort keys, return the child's partition key for querying
+    get_child_query_key: Callable[[Any, Any | None], Any]
+    # Given the child, return the child's partition and sort key for deletion
+    get_child_delete_keys: Callable[[BaseModel], tuple[Any, Any | None]]
 
 
 class Table:
@@ -221,7 +232,16 @@ class Table:
         return True
 
     @classmethod
+    def cascade_relationships(cls) -> list[CascadeRelationship]:
+        return []
+
+    @classmethod
     def delete(cls, partition_value: Any, sort_value: Any | None = None):
+        for rel in cls.cascade_relationships():
+            child_partition_key = rel.get_child_query_key(partition_value, sort_value)
+            for child in rel.child_table.query(child_partition_key):
+                rel.child_table.delete(*rel.get_child_delete_keys(child))
+
         get_client().delete_item(
             TableName=cls.name(),
             Key=cls.key(partition_value, sort_value),

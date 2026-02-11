@@ -3,8 +3,8 @@ from polyfactory.factories.pydantic_factory import ModelFactory
 from pydantic import BaseModel
 
 from critic.libs.ddb import Table, get_client
-from critic.models import UptimeMonitorModel
-from critic.tables import UptimeMonitorTable
+from critic.models import ProjectModel, UptimeLogModel, UptimeMonitorModel
+from critic.tables import ProjectTable, UptimeLogTable, UptimeMonitorTable
 
 
 def create_tables():
@@ -112,7 +112,19 @@ class PutMixin:
         return item
 
 
+class ProjectFactory(PutMixin, ModelFactory):
+    __model__ = ProjectModel
+    __table__ = ProjectTable
+    __use_defaults__ = True
+
+
 class UptimeMonitorFactory(PutMixin, ModelFactory):
     __model__ = UptimeMonitorModel
     __table__ = UptimeMonitorTable
+    __use_defaults__ = True
+
+
+class UptimeLogFactory(PutMixin, ModelFactory):
+    __model__ = UptimeLogModel
+    __table__ = UptimeLogTable
     __use_defaults__ = True

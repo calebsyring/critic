@@ -113,7 +113,7 @@ class UptimeCheck:
         if self._put_log:
             raise Exception('Log already put! Do not call this method more than once in one run.')
         uptime_log = UptimeLogModel(
-            monitor_id=f'{self.monitor.project_id}/{self.monitor.slug}',
+            monitor_id=self.monitor.id,
             timestamp=self.now,
             status=state,
             resp_code=status_code,
