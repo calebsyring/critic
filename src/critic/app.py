@@ -1,21 +1,18 @@
 import logging
 import os
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from flask import Flask, flash, redirect, render_template, url_for
+from flask import Flask, flash, redirect, render_template, request, url_for
 
 from critic.forms import CreateProjectForm
-from critic.tables import ProjectTable
+from critic.models import UptimeMonitorModel
+from critic.tables import ProjectTable, UptimeMonitorTable
 
 
 log = logging.getLogger()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-change-me')
-
-# Demo-only storage (clears on server restart)
-DEMO_MODE = os.environ.get('CRITIC_DEMO_MODE', '1') == '1'
-_demo_projects: list[dict[str, str]] = []
 
 
 @app.route('/log')
@@ -42,7 +39,7 @@ def login():
 @app.route('/')
 def dashboard():
     """Overview of Monitors"""
-    return render_template('dashboard.html', projects=_demo_projects if DEMO_MODE else [])
+    return render_template('dashboard.html')
 
 
 @app.route('/project/<int:project_id>')
@@ -57,29 +54,42 @@ def monitor_detail(monitor_id):
     return render_template('monitor.html', monitor_id=monitor_id)
 
 
-@app.route('/create', methods=['GET', 'POST'])
-def create():
+@app.route('/create-project', methods=['GET', 'POST'])
+def create_project():
     form = CreateProjectForm()
     if form.validate_on_submit():
-        name = form.name.data.strip()
-        if DEMO_MODE:
-            _demo_projects.append({'id': str(uuid4()), 'name': name})
-        else:
-            ProjectTable.put({'id': str(uuid4()), 'name': name})
+        ProjectTable.put({'id': str(uuid4()), 'name': form.name.data.strip()})
         flash('Project created successfully!', 'success')
         return redirect(url_for('dashboard'))
-    return render_template('create.html', form=form)
+    return render_template('create_project.html', form=form)
+
+
+@app.route('/create-monitor', methods=['GET', 'POST'])
+def create_monitor():
+    """Create a monitor."""
+    if request.method == 'POST':
+        project_id = request.form['project_id']
+        slug = request.form['slug']
+        url = request.form['url']
+        frequency_mins = int(request.form['frequency_mins'])
+
+        monitor = UptimeMonitorModel(
+            project_id=UUID(project_id),
+            slug=slug,
+            url=url,
+            frequency_mins=frequency_mins,
+        )
+        UptimeMonitorTable.put(monitor)
+
+        flash('Monitor created successfully!', 'success')
+        return redirect(url_for('dashboard'))
+    return render_template('create_monitor.html')
 
 
 @app.route('/project/<project_id>/delete', methods=['POST'])
 def delete_project(project_id):
-    """Delete a project (demo mode)."""
-    if DEMO_MODE:
-        global _demo_projects
-        _demo_projects = [p for p in _demo_projects if p['id'] != project_id]
-        flash('Project deleted.', 'success')
-        return redirect(url_for('dashboard'))
-    return render_template('delete_project.html', project_id=project_id)
+    """Delete a project."""
+    return render_template('delete.html')
 
 
 @app.route('/monitor/<int:monitor_id>/pause', methods=['POST'])
@@ -90,6 +100,7 @@ def pause_monitor(monitor_id):
 
 @app.route('/logout')
 def logout():
+    """This is temporary"""
     return redirect(url_for('dashboard'))
 
 
