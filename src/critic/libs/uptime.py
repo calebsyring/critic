@@ -95,22 +95,31 @@ class UptimeCheck:
     def alert(self):
         """TODO: alert self.monitor.alert_slack_channels and self.monitor.alert_emails."""
 
-    def check_resp(self, response: httpx.Response | None) -> tuple[MonitorState, int]:
+    def check_resp(self, response: httpx.Response | None) -> tuple[MonitorState, int, str]:
         """Checks the response and returns the new state and consecutive fails. Also alerts if
         needed.
         """
-        # put in here
-
+        evaluation_response: tuple[bool, str] = None
         state = MonitorState.down
+        # if no
         if response:
-            state = MonitorState.up
-            # TODO: check assertions
+            if self.monitor.assertions != []:
+                for assertions in self.monitor.assertions:
+                    evaluation_response = assertions.evaluate(httpx.Response)
+                    # TODO do we want it to keep checking assertions if the first fails?
+                    if not evaluation_response[0]:
+                        break
+                if evaluation_response[0]:
+                    state = MonitorState.up
+            else:
+                state = MonitorState.up
+
         consecutive_fails = 0 if state == MonitorState.up else self.monitor.consecutive_fails + 1
         if consecutive_fails >= self.monitor.failures_before_alerting:
             self.alert()
-        return state, consecutive_fails
+        return state, consecutive_fails, (evaluation_response[1] if evaluation_response else None)
 
-    def put_log(self, state: MonitorState, status_code: int, latency: float):
+    def put_log(self, state: MonitorState, status_code: int, latency: float, error_message):
         """
         Puts a log for the check. This method should only be called once per monitor check.
         """
@@ -122,6 +131,7 @@ class UptimeCheck:
             status=state,
             resp_code=status_code,
             latency_secs=latency,
+            error_message=error_message if error_message else None,
         )
         UptimeLogTable.put(uptime_log)
         self._put_log = True
@@ -144,11 +154,11 @@ class UptimeCheck:
         resp, latency = self.make_req()
 
         # Check the response (also kicks off alerts if needed)
-        state, consecutive_fails = self.check_resp(resp)
+        state, consecutive_fails, error_message = self.check_resp(resp)
 
         # Update the monitor
         updated = self.update_monitor({'state': state, 'consecutive_fails': consecutive_fails})
 
         # Save a log
         if updated:
-            self.put_log(state, resp.status_code if resp else 0, latency)
+            self.put_log(state, resp.status_code if resp else 0, latency, error_message)

@@ -61,6 +61,7 @@ class UptimeLog(BaseModel):
     status: MonitorState
     resp_code: int | None
     latency_secs: float | None
+    error_message: str | None = None
 
 
 class ProjectMonitors(BaseModel):

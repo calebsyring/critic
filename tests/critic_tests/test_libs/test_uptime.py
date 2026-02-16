@@ -5,6 +5,7 @@ from freezegun import freeze_time
 import httpx
 import pytest
 
+from critic.libs.assertions import Assertion
 from critic.libs.testing import UptimeMonitorFactory
 from critic.libs.uptime import MonitorNotFoundError, UptimeCheck
 from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
@@ -26,9 +27,9 @@ class TestUptimeCheck:
     def test_duplicate_log(self):
         monitor = UptimeMonitorFactory.put()
         check = UptimeCheck(str(monitor.project_id), monitor.slug)
-        check.put_log(MonitorState.up, 200, 0.1)
+        check.put_log(MonitorState.up, 200, 0.1, None)
         with pytest.raises(Exception, match='Log already put'):
-            check.put_log(MonitorState.up, 200, 0.1)
+            check.put_log(MonitorState.up, 200, 0.1, None)
 
     def test_race_condition(self, httpx_mock):
         monitor = UptimeMonitorFactory.put(next_due_at='2026-02-10 11:50:00Z')
@@ -124,7 +125,6 @@ class TestUptimeCheck:
         assert response.status == MonitorState.down
         assert response.resp_code == 0
 
-    # what are we doing for next due time when paused?
     def test_paused(self):
         monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
             consecutive_fails=0,
@@ -158,3 +158,20 @@ class TestUptimeCheck:
         # Next due at should be calculated from the current time
         monitor: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
         assert monitor.next_due_at == datetime(2026, 2, 1, 12, 5, 0, tzinfo=UTC)
+
+    def test_assertion_fails(self, httpx_mock):
+        httpx_mock.add_response()
+
+        # Pretend critic went down for a month (from Jan 1st to Feb 1st). Next due at is much older
+        # than we would expect.
+        monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
+            next_due_at='2026-01-01 12:00:00Z',
+            frequency_mins=5,
+            state=MonitorState.up,
+            assertions=[Assertion(assertion_string="body contains 'foo'")],
+        )
+
+        UptimeCheck(str(monitor.project_id), monitor.slug).run()
+        monitor: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
+
+        assert monitor.state == MonitorState.down

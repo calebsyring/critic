@@ -111,7 +111,7 @@ class Assertion(BaseModel):
         return f'{self.assertion_string}'
 
     # Return true and empty string if true and false with a string explaining what failed otherwise
-    def evaluate(self, response: httpx.Response) -> tuple[bool, str]:
+    def evaluate(self, response: httpx.Response) -> tuple[bool, str | None]:
         op_func = self._OPS[self.assertion_operator]
 
         if not op_func:
@@ -130,7 +130,7 @@ class Assertion(BaseModel):
         try:
             success = op_func(actual, expected)
             if success:
-                return True, ''
+                return True, None
             return (
                 False,
                 f'Expected {self.assertion_object} {self.assertion_operator} \

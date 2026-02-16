@@ -78,12 +78,12 @@ class TestAssertions:
 
         status_code_eval: tuple[bool, str] = assertion_status_code.evaluate(response=response)
         assert status_code_eval[0]
-        assert status_code_eval[1] == ''
+        assert status_code_eval[1] is None
 
         resp_time_eval: tuple[bool, str] = assertion_resp_time.evaluate(response=response)
         assert resp_time_eval[0]
-        assert resp_time_eval[1] == ''
+        assert resp_time_eval[1] is None
 
         assertion_body: tuple[bool, str] = assertion_body.evaluate(response=response)
         assert resp_time_eval[0]
-        assert resp_time_eval[1] == ''
+        assert resp_time_eval[1] is None
