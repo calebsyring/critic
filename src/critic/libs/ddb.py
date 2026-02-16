@@ -1,3 +1,5 @@
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 import os
@@ -6,6 +8,7 @@ from uuid import UUID
 
 from boto3 import client
 from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
+from botocore.exceptions import ClientError
 from pydantic import AwareDatetime, BaseModel, TypeAdapter
 
 from critic.libs.dt import to_utc
@@ -77,6 +80,15 @@ serialize = Serializer()
 deserialize = Deserializer()
 
 
+@dataclass
+class CascadeRelationship:
+    child_table: type['Table']
+    # Given the parent's partition and sort keys, return the child's partition key for querying
+    get_child_query_key: Callable[[Any, Any | None], Any]
+    # Given the child, return the child's partition and sort key for deletion
+    get_child_delete_keys: Callable[[BaseModel], tuple[Any, Any | None]]
+
+
 class Table:
     base_name: str
     model: type[BaseModel]
@@ -133,48 +145,103 @@ class Table:
     @classmethod
     def query(cls, partition_value: Any) -> list[BaseModel]:
         """Query for all items with the given partition key."""
-        # We use aliases for the partition key to avoid reserved word conflicts
-        pk_alias = f'#{cls.partition_key}'
+        names, values, clauses = cls.alias({cls.partition_key: partition_value})
 
         response = get_client().query(
             TableName=cls.name(),
-            KeyConditionExpression=f'{pk_alias} = :pk',
-            ExpressionAttributeNames={pk_alias: cls.partition_key},
-            ExpressionAttributeValues=serialize({':pk': partition_value}),
+            KeyConditionExpression=clauses[0],
+            ExpressionAttributeNames=names,
+            ExpressionAttributeValues=values,
         )
 
         items = response.get('Items', [])
         return [cls.model(**deserialize(item)) for item in items]
+
+    @staticmethod
+    def alias(data: dict, val_suffix: str = '') -> tuple[dict, dict, list]:
+        """
+        Serializes a dict of key-value pairs and returns:
+        1. A dict mapping aliased keys to actual keys (often used as ExpressionAttributeNames)
+           Ex. {'#key1': 'key1', '#key2': 'key2'}
+        2. A dict mapping aliased values to actual values (often used as ExpressionAttributeValues)
+           Ex. {':key1': 'value1', ':key2': 'value2'}
+        3. A list of aliased key-value pairs in DDB expression format (often used in *Expression)
+           Ex. ['#key1 = :key1', '#key2 = :key2']
+
+        Sometimes you may want to use the same key with different values in different expressions.
+        For example, the condition expression may require a key to have one value while the update
+        expression will set it to another. In that case, you can pass a suffix to differentiate
+        them.
+
+        You can then safely combine the results of multiple calls to this function into
+        ExpressionAttributeValues. You'll have something that looks like this:
+        {':key-suffix1': 'value1', ':key-suffix2': 'value2'}
+        """
+        data = serialize(data)
+        names = {f'#{k}': k for k in data}
+        values = {f':{k}{val_suffix}': v for k, v in data.items()}
+        clauses = [f'#{k} = :{k}{val_suffix}' for k in data]
+        return names, values, clauses
+
+    @staticmethod
+    def alias_all(*data: dict) -> tuple[dict, dict, list[list]]:
+        """
+        Calls alias() for each dict and returns the combined results. See alias() for more info.
+        """
+        names, values, clauses = {}, {}, []
+        for i, d in enumerate(data):
+            n, v, c = Table.alias(d, f'_{i}')
+            names |= n
+            values |= v
+            clauses.append(c)
+        return names, values, clauses
 
     @classmethod
     def update(
         cls,
         partition_value: Any,
         sort_value: Any | None = None,
-        **updates,
-    ):
+        updates: dict | None = None,
+        condition: dict | None = None,
+    ) -> bool:
         if not updates:
             raise ValueError('No updates provided')
-        updates = serialize(updates)
 
-        # Alias every field
-        expr_attr_names = {f'#{k}': k for k in updates}
-        expr_attr_values = {f':{k}': v for k, v in updates.items()}
+        if condition:
+            names, values, clauses = cls.alias_all(updates, condition)
+            update_clauses, cond_clauses = clauses
+        else:
+            names, values, update_clauses = cls.alias(updates)
 
-        # Build SET expression
-        set_clauses = [f'#{k} = :{k}' for k in updates]
-        update_expr = 'SET ' + ', '.join(set_clauses)
+        kwargs = {
+            'TableName': cls.name(),
+            'Key': cls.key(partition_value, sort_value),
+            'UpdateExpression': 'SET ' + ', '.join(update_clauses),
+            'ExpressionAttributeNames': names,
+            'ExpressionAttributeValues': values,
+        }
+        if condition:
+            kwargs['ConditionExpression'] = ' AND '.join(cond_clauses)
 
-        get_client().update_item(
-            TableName=cls.name(),
-            Key=cls.key(partition_value, sort_value),
-            UpdateExpression=update_expr,
-            ExpressionAttributeNames=expr_attr_names,
-            ExpressionAttributeValues=expr_attr_values,
-        )
+        try:
+            get_client().update_item(**kwargs)
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                return False
+            raise
+        return True
+
+    @classmethod
+    def cascade_relationships(cls) -> list[CascadeRelationship]:
+        return []
 
     @classmethod
     def delete(cls, partition_value: Any, sort_value: Any | None = None):
+        for rel in cls.cascade_relationships():
+            child_partition_key = rel.get_child_query_key(partition_value, sort_value)
+            for child in rel.child_table.query(child_partition_key):
+                rel.child_table.delete(*rel.get_child_delete_keys(child))
+
         get_client().delete_item(
             TableName=cls.name(),
             Key=cls.key(partition_value, sort_value),
