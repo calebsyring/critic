@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
 from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, Field, HttpUrl, field_validator
 
+from critic.libs.assertions import Assertion
 from critic.libs.ddb import CONSTANT_GSI_PK
 from critic.libs.dt import to_utc
 
@@ -35,7 +35,7 @@ class UptimeMonitorModel(BaseModel):
         default_factory=lambda: datetime.now(UTC).replace(second=0, microsecond=0)
     )
     timeout_secs: float = Field(ge=0, default=5)
-    assertions: dict[str, Any] = Field(default_factory=dict)
+    assertions: list[Assertion] = Field(default_factory=list)
     failures_before_alerting: int = Field(ge=1, default=1)
     alert_slack_channels: list[str] = Field(default_factory=list)
     alert_emails: list[str] = Field(default_factory=list)

@@ -78,6 +78,8 @@ class UptimeCheck:
         """
         Makes the request and returns the response and the time it took to make the request.
         """
+
+        # TODO figure out if we want to use time.perf_counter or built in httpx response latency
         start = time.perf_counter()
         with httpx.Client() as client:
             try:
@@ -97,6 +99,8 @@ class UptimeCheck:
         """Checks the response and returns the new state and consecutive fails. Also alerts if
         needed.
         """
+        # put in here
+
         state = MonitorState.down
         if response:
             state = MonitorState.up

@@ -50,11 +50,18 @@ class Assertion(BaseModel):
 
     @model_validator(mode='before')
     @classmethod
-    def _parse_string(cls, data: dict):
+    def _parse_assertion(cls, data: dict):
         # TODO this will parse the string and set the objects
-        if isinstance(data, dict) and 'assertion_string' in data:
-            raw_string: str = data['assertion_string']
+        if isinstance(data, str):
+            data = {'assertion_string': data}
 
+        if not isinstance(data, dict):
+            raise ValueError(
+                'Assertion must be initialized with a string or a dict containing assertion_string'
+            )
+
+        if 'assertion_string' in data:
+            raw_string: str = data['assertion_string']
             """
             Things that can go wrong:
                 1. More than 3 parts

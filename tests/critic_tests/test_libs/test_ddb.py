@@ -4,6 +4,7 @@ from unittest import mock
 from botocore.exceptions import ClientError
 import pytest
 
+from critic.libs.assertions import Assertion
 from critic.models import UptimeMonitorModel
 from critic.tables import UptimeMonitorTable
 
@@ -20,7 +21,10 @@ class TestDDB:
             'consecutive_fails': 0,
             'next_due_at': '2025-11-10T20:35:00Z',
             'timeout_secs': 30,
-            'assertions': {'status_code': 200, 'body_contains': 'OK'},
+            'assertions': [
+                Assertion(assertion_string='status_code == 200'),
+                Assertion(assertion_string="body contains 'OK'"),
+            ],
             'failures_before_alerting': 2,
             'alert_slack_channels': ['#ops'],
             'alert_emails': ['alerts@example.com'],
@@ -44,7 +48,10 @@ class TestDDB:
             'consecutive_fails': 0,
             'next_due_at': '2025-11-10T20:35:00Z',
             'timeout_secs': 30,
-            'assertions': {'status_code': 200, 'body_contains': 'OK'},
+            'assertions': [
+                Assertion(assertion_string='status_code == 200'),
+                Assertion(assertion_string="body contains 'OK'"),
+            ],
             'failures_before_alerting': 2,
             'alert_slack_channels': ['#ops'],
             'alert_emails': ['alerts@example.com'],
@@ -78,7 +85,10 @@ class TestDDB:
             'consecutive_fails': 0,
             'next_due_at': '2025-11-10T20:35:00Z',
             'timeout_secs': 30,
-            'assertions': {'status_code': 200, 'body_contains': 'OK'},
+            'assertions': [
+                Assertion(assertion_string='status_code == 200'),
+                Assertion(assertion_string="body contains 'OK'"),
+            ],
             'failures_before_alerting': 2,
             'alert_slack_channels': ['#ops'],
             'alert_emails': ['alerts@example.com'],
