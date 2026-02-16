@@ -68,22 +68,15 @@ class TestAssertions:
         resp = httpx.Response(status_code=200, text='foo bar')
         # Manually set the elapsed time to 500ms
         resp.elapsed = timedelta(milliseconds=20.1)
-        httpx_mock.add_callback(custom_response)
-        with httpx.Client() as client:
-            try:
-                response: httpx.Response = client.head('https://google.com')
-            except Exception as e:
-                response = None
-                print(e)
 
-        status_code_eval: tuple[bool, str] = assertion_status_code.evaluate(response=response)
+        status_code_eval: tuple[bool, str] = assertion_status_code.evaluate(response=resp)
         assert status_code_eval[0]
         assert status_code_eval[1] is None
 
-        resp_time_eval: tuple[bool, str] = assertion_resp_time.evaluate(response=response)
+        resp_time_eval: tuple[bool, str] = assertion_resp_time.evaluate(response=resp)
         assert resp_time_eval[0]
         assert resp_time_eval[1] is None
 
-        assertion_body: tuple[bool, str] = assertion_body.evaluate(response=response)
+        assertion_body: tuple[bool, str] = assertion_body.evaluate(response=resp)
         assert resp_time_eval[0]
         assert resp_time_eval[1] is None
