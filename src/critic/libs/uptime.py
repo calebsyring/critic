@@ -101,7 +101,7 @@ class UptimeCheck:
         """
         evaluation_response: tuple[bool, str] = None
         state = MonitorState.down
-        # if no
+
         if response:
             if self.monitor.assertions != []:
                 for assertions in self.monitor.assertions:
@@ -113,13 +113,16 @@ class UptimeCheck:
                     state = MonitorState.up
             else:
                 state = MonitorState.up
+        # else means there was a timeout
+        else:
+            evaluation_response = (False, 'Connection Timeout')
 
         consecutive_fails = 0 if state == MonitorState.up else self.monitor.consecutive_fails + 1
         if consecutive_fails >= self.monitor.failures_before_alerting:
             self.alert()
         return state, consecutive_fails, (evaluation_response[1] if evaluation_response else None)
 
-    def put_log(self, state: MonitorState, status_code: int, latency: float, error_message):
+    def put_log(self, state: MonitorState, status_code: int, latency: float, error_message: str):
         """
         Puts a log for the check. This method should only be called once per monitor check.
         """

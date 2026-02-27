@@ -82,6 +82,7 @@ class TestUptimeCheck:
         assert response.status == MonitorState.up
         assert response.resp_code > 0
         assert response.latency_secs > 0
+        assert response.error_message is None
 
     def test_down_with_consec_fails_above_threshold(self, httpx_mock):
         monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
@@ -124,6 +125,7 @@ class TestUptimeCheck:
         # log should have resp of 0 since there was a timeout
         assert response.status == MonitorState.down
         assert response.resp_code == 0
+        assert response.error_message == 'Connection Timeout'
 
     def test_paused(self):
         monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
