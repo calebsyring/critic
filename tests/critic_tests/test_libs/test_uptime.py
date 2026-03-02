@@ -8,7 +8,7 @@ import pytest
 from critic.libs.assertions import Assertion
 from critic.libs.testing import UptimeMonitorFactory
 from critic.libs.uptime import MonitorNotFoundError, UptimeCheck
-from critic.models import MonitorState, UptimeLog, UptimeMonitorModel
+from critic.models import MonitorState, UptimeLogModel, UptimeMonitorModel
 from critic.tables import UptimeLogTable, UptimeMonitorTable
 
 
@@ -51,7 +51,7 @@ class TestUptimeCheck:
         assert monitor.next_due_at == datetime(2026, 2, 10, 12, 0, 0, tzinfo=UTC)
 
         # No log is created
-        logs = UptimeLogTable.query(f'{monitor.project_id}/{monitor.slug}')
+        logs = UptimeLogTable.query(monitor.id)
         assert len(logs) == 0
 
     def test_run_up(self, caplog, httpx_mock):
@@ -75,8 +75,7 @@ class TestUptimeCheck:
         assert response.next_due_at > time_to_check
         assert response.consecutive_fails == 0
 
-        monitor_id = f'{monitor.project_id}/{monitor.slug}'
-        response: UptimeLog = UptimeLogTable.query(monitor_id)[-1]
+        response: UptimeLogModel = UptimeLogTable.query(monitor.id)[-1]
 
         # check logging stuff
         assert response.status == MonitorState.up
@@ -99,8 +98,7 @@ class TestUptimeCheck:
         assert response.state == MonitorState.down
         assert response.consecutive_fails == 2
 
-        monitor_id = f'{monitor.project_id}/{monitor.slug}'
-        response: UptimeLog = UptimeLogTable.query(monitor_id)[-1]
+        response: UptimeLogModel = UptimeLogTable.query(monitor.id)[-1]
         # log should have resp of 0 since there was a timeout
         assert response.status == MonitorState.down
         assert response.resp_code == 0
@@ -120,8 +118,7 @@ class TestUptimeCheck:
         assert response.state == MonitorState.down
         assert response.consecutive_fails == 1
 
-        monitor_id = f'{monitor.project_id}/{monitor.slug}'
-        response: UptimeLog = UptimeLogTable.query(monitor_id)[-1]
+        response: UptimeLogModel = UptimeLogTable.query(monitor.id)[-1]
         # log should have resp of 0 since there was a timeout
         assert response.status == MonitorState.down
         assert response.resp_code == 0
@@ -175,6 +172,6 @@ class TestUptimeCheck:
         assert monitor.state == MonitorState.down
 
         monitor_id = f'{monitor.project_id}/{monitor.slug}'
-        response: UptimeLog = UptimeLogTable.query(monitor_id)[-1]
+        response: UptimeLogModel = UptimeLogTable.query(monitor_id)[-1]
 
         assert 'contains foo' in response.error_message

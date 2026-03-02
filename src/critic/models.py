@@ -18,7 +18,7 @@ class MonitorState(str, Enum):
     paused = 'paused'
 
 
-class Project(BaseModel):
+class ProjectModel(BaseModel):
     id: UUID
     name: str
 
@@ -50,8 +50,12 @@ class UptimeMonitorModel(BaseModel):
             raise ValueError('next_due_at must be no more precise than minutes')
         return to_utc(v)
 
+    @property
+    def id(self) -> str:
+        return UptimeLogModel.monitor_id_from_parts(self.project_id, self.slug)
 
-class UptimeLog(BaseModel):
+
+class UptimeLogModel(BaseModel):
     monitor_id: str = Field(
         # Project ID and monitor slug, separated by a slash
         # pattern = UUID / slug
@@ -63,6 +67,10 @@ class UptimeLog(BaseModel):
     latency_secs: float | None
     error_message: str | None = None
 
+    @staticmethod
+    def monitor_id_from_parts(project_id: UUID | str, slug: str) -> str:
+        return f'{project_id}/{slug}'
 
-class ProjectMonitors(BaseModel):
+
+class ProjectMonitorsModel(BaseModel):
     uptime: list[UptimeMonitorModel] = Field(default_factory=list)

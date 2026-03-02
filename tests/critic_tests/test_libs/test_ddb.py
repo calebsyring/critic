@@ -5,11 +5,12 @@ from botocore.exceptions import ClientError
 import pytest
 
 from critic.libs.assertions import Assertion
-from critic.models import UptimeMonitorModel
-from critic.tables import UptimeMonitorTable
+from critic.libs.testing import ProjectFactory, UptimeLogFactory, UptimeMonitorFactory
+from critic.models import ProjectModel, UptimeLogModel, UptimeMonitorModel
+from critic.tables import ProjectTable, UptimeLogTable, UptimeMonitorTable
 
 
-class TestDDB:
+class TestTable:
     @pytest.mark.integration
     def test_integration(self):
         # Pretend we've received data via the API
@@ -39,7 +40,7 @@ class TestDDB:
 
     @pytest.mark.parametrize('input_as_model', [True, False])
     def test_unit(self, input_as_model):
-        # Pretend we've received data via the API
+        # Sometimes we may want to pass input as a dict (not a model). Make sure we handle that.
         in_data = {
             'project_id': '6033aa47-a9f7-4d7f-b7ff-a11ba9b34474',
             'slug': 'my-monitor',
@@ -94,8 +95,7 @@ class TestDDB:
             'alert_emails': ['alerts@example.com'],
             'realert_interval_mins': 60,
         }
-        in_data = UptimeMonitorModel(**in_data)
-        UptimeMonitorTable.put(in_data)
+        UptimeMonitorFactory.put(**in_data)
         out_data = UptimeMonitorTable.query('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474')
         assert len(out_data) == 1
         assert str(out_data[0].url) == 'https://example.com/health'
@@ -119,3 +119,31 @@ class TestDDB:
                 '6033aa47-a9f7-4d7f-b7ff-a11ba9b34474', 'my-monitor', {'a': 1}
             )
         assert excinfo.value == error
+
+    def test_cascade_delete(self):
+        # Happy path: deleting a project should delete all its monitors and logs
+        del_proj: ProjectModel = ProjectFactory.put()
+
+        del_mon: UptimeMonitorModel = UptimeMonitorFactory.put(project_id=del_proj.id)
+        UptimeLogFactory.put(monitor_id=del_mon.id)
+        UptimeLogFactory.put(monitor_id=del_mon.id)
+
+        UptimeMonitorFactory.put(project_id=del_proj.id)
+
+        # Sad path: These should all be left untouched
+        keep_proj: ProjectModel = ProjectFactory.put()
+        keep_mon: UptimeMonitorModel = UptimeMonitorFactory.put(project_id=keep_proj.id)
+        keep_log: UptimeLogModel = UptimeLogFactory.put(monitor_id=keep_mon.id)
+
+        # Delete the project
+        ProjectTable.delete(del_proj.id)
+
+        # Check the happy path (everything related to the deleted project should be gone)
+        assert ProjectTable.get(del_proj.id) is None
+        assert UptimeMonitorTable.query(del_mon.project_id) == []
+        assert UptimeLogTable.query(del_mon.id) == []
+
+        # Check the sad path (everything not related to the deleted project should be untouched)
+        assert ProjectTable.get(keep_proj.id) == keep_proj
+        assert UptimeMonitorTable.get(keep_mon.project_id, keep_mon.slug) == keep_mon
+        assert UptimeLogTable.get(keep_log.monitor_id, keep_log.timestamp) == keep_log
