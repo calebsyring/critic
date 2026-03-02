@@ -155,7 +155,6 @@ class Table:
         )
 
         items = response.get('Items', [])
-        print(items)
         return [cls.model(**deserialize(item)) for item in items]
 
     @staticmethod

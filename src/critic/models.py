@@ -63,8 +63,8 @@ class UptimeLogModel(BaseModel):
     )
     timestamp: AwareDatetime
     status: MonitorState
-    resp_code: int | None
-    latency_secs: float | None
+    resp_code: int | None = None
+    latency_secs: float | None = None
     error_message: str | None = None
 
     @staticmethod
