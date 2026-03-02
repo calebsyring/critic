@@ -128,13 +128,16 @@ class Assertion(BaseModel):
             actual = response.elapsed.total_seconds() * 1000
 
         try:
+            print(op_func(actual, expected))
             success = op_func(actual, expected)
             if success:
                 return True, None
             return (
                 False,
-                f'Expected {self.assertion_object} {self.assertion_operator} \
-                {expected}, but got {actual}',
+                (
+                    f'Expected {self.assertion_object} {self.assertion_operator} '
+                    f'{expected}, but got {actual}'
+                ),
             )
         except Exception as e:
             return False, f'Error evaluating assertion: {e}'

@@ -140,7 +140,7 @@ class TestUptimeCheck:
         response: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
         assert response.next_due_at > time_to_check
         monitor_id = f'{monitor.project_id}/{monitor.slug}'
-        response: UptimeLog = UptimeLogTable.query(monitor_id)
+        response = UptimeLogTable.query(monitor_id)
         # does not have item because no log is created since the monitor is paused
         assert response == []
 
@@ -164,16 +164,17 @@ class TestUptimeCheck:
     def test_assertion_fails(self, httpx_mock):
         httpx_mock.add_response()
 
-        # Pretend critic went down for a month (from Jan 1st to Feb 1st). Next due at is much older
-        # than we would expect.
         monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
-            next_due_at='2026-01-01 12:00:00Z',
             frequency_mins=5,
             state=MonitorState.up,
             assertions=[Assertion(assertion_string="body contains 'foo'")],
         )
-
+        print(monitor.assertions)
         UptimeCheck(str(monitor.project_id), monitor.slug).run()
         monitor: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
-
         assert monitor.state == MonitorState.down
+
+        monitor_id = f'{monitor.project_id}/{monitor.slug}'
+        response: UptimeLog = UptimeLogTable.query(monitor_id)[-1]
+
+        assert 'contains foo' in response.error_message

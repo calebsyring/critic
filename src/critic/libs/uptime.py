@@ -28,7 +28,7 @@ class UptimeCheck:
         self.project_id = project_id
         self.monitor_slug = monitor_slug
 
-        self.monitor: UptimeMonitorModel = UptimeMonitorTable.get(
+        self.monitor: UptimeMonitorModel | None = UptimeMonitorTable.get(
             self.project_id, self.monitor_slug
         )
         if not self.monitor:
@@ -99,13 +99,13 @@ class UptimeCheck:
         """Checks the response and returns the new state and consecutive fails. Also alerts if
         needed.
         """
-        evaluation_response: tuple[bool, str] = None
+        evaluation_response: tuple[bool, str | None] | None = None
         state = MonitorState.down
 
         if response:
             if self.monitor.assertions != []:
                 for assertions in self.monitor.assertions:
-                    evaluation_response = assertions.evaluate(httpx.Response)
+                    evaluation_response = assertions.evaluate(response)
                     # TODO do we want it to keep checking assertions if the first fails?
                     if not evaluation_response[0]:
                         break
@@ -122,7 +122,9 @@ class UptimeCheck:
             self.alert()
         return state, consecutive_fails, (evaluation_response[1] if evaluation_response else None)
 
-    def put_log(self, state: MonitorState, status_code: int, latency: float, error_message: str):
+    def put_log(
+        self, state: MonitorState, status_code: int, latency: float, error_message: str | None
+    ):
         """
         Puts a log for the check. This method should only be called once per monitor check.
         """
