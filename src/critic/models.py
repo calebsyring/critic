@@ -65,7 +65,7 @@ class UptimeLogModel(BaseModel):
     status: MonitorState
     resp_code: int | None = None
     latency_secs: float | None = None
-    error_message: str | None = None
+    error_message: list[str] | None = None
 
     @staticmethod
     def monitor_id_from_parts(project_id: UUID | str, slug: str) -> str:

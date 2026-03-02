@@ -122,7 +122,7 @@ class TestUptimeCheck:
         # log should have resp of 0 since there was a timeout
         assert response.status == MonitorState.down
         assert response.resp_code == 0
-        assert response.error_message == 'Connection Timeout'
+        assert response.error_message[0] == 'Connection Timeout'
 
     def test_paused(self):
         monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
@@ -166,7 +166,7 @@ class TestUptimeCheck:
             state=MonitorState.up,
             assertions=[Assertion(assertion_string="body contains 'foo'")],
         )
-        print(monitor.assertions)
+
         UptimeCheck(str(monitor.project_id), monitor.slug).run()
         monitor: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
         assert monitor.state == MonitorState.down
@@ -174,4 +174,22 @@ class TestUptimeCheck:
         monitor_id = f'{monitor.project_id}/{monitor.slug}'
         response: UptimeLogModel = UptimeLogTable.query(monitor_id)[-1]
 
-        assert 'contains foo' in response.error_message
+        assert 'contains foo' in response.error_message[0]
+
+    def test_assertion_fails_with_multiple_errors(self, httpx_mock):
+        httpx_mock.add_response()
+
+        monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
+            frequency_mins=5,
+            state=MonitorState.up,
+            assertions=[
+                Assertion(assertion_string="body contains 'foo'"),
+                Assertion(assertion_string='status_code == 404'),
+            ],
+        )
+
+        UptimeCheck(str(monitor.project_id), monitor.slug).run()
+        monitor_id = f'{monitor.project_id}/{monitor.slug}'
+        response: UptimeLogModel = UptimeLogTable.query(monitor_id)[-1]
+
+        assert '404' in response.error_message[1]

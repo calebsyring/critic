@@ -10,6 +10,11 @@ from pydantic import BaseModel, model_serializer, model_validator
 
 
 class AssertionSubject(str, Enum):
+    """
+    This class should take in strings like "status_code < 400" or "body contains 'foo'"
+    We can then evaluate operator(<given httpx data field actual value>, expected value)
+    """
+
     STATUS_CODE = 'status_code'
     BODY = 'body'
     RESPONSE_TIME = 'response_time'
@@ -18,15 +23,12 @@ class AssertionSubject(str, Enum):
         # Casting logic here is simpler than in the validation method
         if self == AssertionSubject.STATUS_CODE:
             return int(value)
-        if self == AssertionSubject.RESPONSE_TIME:
+        elif self == AssertionSubject.RESPONSE_TIME:
             return float(value)
-        return value
-
-
-"""
-This class should take in strings like "status_code < 400" or "body contains 'foo'"
-We can then evaluate operator(<given httpx data field actual value>, expected value)
-"""
+        elif self == AssertionSubject.BODY:
+            return value
+        else:
+            raise ValueError()
 
 
 class Assertion(BaseModel):
@@ -51,7 +53,6 @@ class Assertion(BaseModel):
     @model_validator(mode='before')
     @classmethod
     def _parse_assertion(cls, data: dict):
-        # TODO this will parse the string and set the objects
         if isinstance(data, str):
             data = {'assertion_string': data}
 
@@ -110,12 +111,10 @@ class Assertion(BaseModel):
     def serialize_model(self) -> str:
         return f'{self.assertion_string}'
 
-    # Return true and empty string if true and false with a string explaining what failed otherwise
     def evaluate(self, response: httpx.Response) -> tuple[bool, str | None]:
+        """Return true and empty string if true and false with a string explaining
+        what failed otherwise"""
         op_func = self._OPS[self.assertion_operator]
-
-        if not op_func:
-            return False, f'Unknown operator: {self.assertion_operator}'
 
         # Get the actual value from the response based on the subject
         actual = None
@@ -128,7 +127,6 @@ class Assertion(BaseModel):
             actual = response.elapsed.total_seconds() * 1000
 
         try:
-            print(op_func(actual, expected))
             success = op_func(actual, expected)
             if success:
                 return True, None

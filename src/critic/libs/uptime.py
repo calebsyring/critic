@@ -83,44 +83,44 @@ class UptimeCheck:
         start = time.perf_counter()
         with httpx.Client() as client:
             try:
-                response = client.head(
+                response: httpx.Response = client.head(
                     str(self.monitor.url), timeout=float(self.monitor.timeout_secs)
                 )
             except httpx.TimeoutException:
                 response = None
         finished = time.perf_counter()
-        latency = finished - start
+        latency = response.elapsed.total_seconds() * 1000 if response else (finished - start)
         return response, latency
 
     def alert(self):
         """TODO: alert self.monitor.alert_slack_channels and self.monitor.alert_emails."""
 
-    def check_resp(self, response: httpx.Response | None) -> tuple[MonitorState, int, str]:
-        """Checks the response and returns the new state and consecutive fails. Also alerts if
-        needed.
+    def check_resp(self, response: httpx.Response | None) -> tuple[MonitorState, int, list[str]]:
+        """Checks the response and returns the new state and consecutive fails and list of error
+        messages. Also alerts if needed consecutive fails is above failure maximum.
         """
-        evaluation_response: tuple[bool, str | None] | None = None
+        error_messages = []
         state = MonitorState.down
 
         if response:
             if self.monitor.assertions != []:
                 for assertions in self.monitor.assertions:
-                    evaluation_response = assertions.evaluate(response)
+                    passed, error_message = assertions.evaluate(response)
                     # TODO do we want it to keep checking assertions if the first fails?
-                    if not evaluation_response[0]:
-                        break
-                if evaluation_response[0]:
+                    if not passed:
+                        error_messages.append(error_message)
+                if not error_messages:
                     state = MonitorState.up
             else:
                 state = MonitorState.up
         # else means there was a timeout
         else:
-            evaluation_response = (False, 'Connection Timeout')
+            error_messages.append('Connection Timeout')
 
         consecutive_fails = 0 if state == MonitorState.up else self.monitor.consecutive_fails + 1
         if consecutive_fails >= self.monitor.failures_before_alerting:
             self.alert()
-        return state, consecutive_fails, (evaluation_response[1] if evaluation_response else None)
+        return state, consecutive_fails, error_messages
 
     def put_log(
         self, state: MonitorState, status_code: int, latency: float, error_message: str | None
@@ -136,7 +136,7 @@ class UptimeCheck:
             status=state,
             resp_code=status_code,
             latency_secs=latency,
-            error_message=error_message if error_message else None,
+            error_message=error_message,
         )
         UptimeLogTable.put(uptime_log)
         self._put_log = True
@@ -159,11 +159,16 @@ class UptimeCheck:
         resp, latency = self.make_req()
 
         # Check the response (also kicks off alerts if needed)
-        state, consecutive_fails, error_message = self.check_resp(resp)
+        state, consecutive_fails, error_messages = self.check_resp(resp)
 
         # Update the monitor
         updated = self.update_monitor({'state': state, 'consecutive_fails': consecutive_fails})
 
         # Save a log
         if updated:
-            self.put_log(state, resp.status_code if resp else 0, latency, error_message)
+            self.put_log(
+                state,
+                resp.status_code if resp else 0,
+                latency,
+                error_messages if error_messages else None,
+            )
