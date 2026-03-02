@@ -66,7 +66,6 @@ class TestAssertions:
         assertion_body = Assertion(**BODY_ASSERTION)
 
         resp = httpx.Response(status_code=200, text='foo bar')
-        # Manually set the elapsed time to 500ms
         resp.elapsed = timedelta(milliseconds=20.1)
 
         status_code_eval: tuple[bool, str] = assertion_status_code.evaluate(response=resp)
