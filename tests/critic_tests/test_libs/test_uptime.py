@@ -5,6 +5,7 @@ from freezegun import freeze_time
 import httpx
 import pytest
 
+from critic.libs.assertions import Assertion
 from critic.libs.testing import UptimeMonitorFactory
 from critic.libs.uptime import MonitorNotFoundError, UptimeCheck
 from critic.models import MonitorState, UptimeLogModel, UptimeMonitorModel
@@ -26,9 +27,9 @@ class TestUptimeCheck:
     def test_duplicate_log(self):
         monitor = UptimeMonitorFactory.put()
         check = UptimeCheck(str(monitor.project_id), monitor.slug)
-        check.put_log(MonitorState.up, 200, 0.1)
+        check.put_log(MonitorState.up, 200, 0.1, None)
         with pytest.raises(Exception, match='Log already put'):
-            check.put_log(MonitorState.up, 200, 0.1)
+            check.put_log(MonitorState.up, 200, 0.1, None)
 
     def test_race_condition(self, httpx_mock):
         monitor = UptimeMonitorFactory.put(next_due_at='2026-02-10 11:50:00Z')
@@ -80,6 +81,7 @@ class TestUptimeCheck:
         assert response.status == MonitorState.up
         assert response.resp_code > 0
         assert response.latency_secs > 0
+        assert response.error_message is None
 
     def test_down_with_consec_fails_above_threshold(self, httpx_mock):
         monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
@@ -120,8 +122,8 @@ class TestUptimeCheck:
         # log should have resp of 0 since there was a timeout
         assert response.status == MonitorState.down
         assert response.resp_code == 0
+        assert response.error_message[0] == 'Connection Timeout'
 
-    # what are we doing for next due time when paused?
     def test_paused(self):
         monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
             consecutive_fails=0,
@@ -134,7 +136,8 @@ class TestUptimeCheck:
 
         response: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
         assert response.next_due_at > time_to_check
-        response: UptimeLogModel = UptimeLogTable.query(monitor.id)
+        monitor_id = f'{monitor.project_id}/{monitor.slug}'
+        response = UptimeLogTable.query(monitor_id)
         # does not have item because no log is created since the monitor is paused
         assert response == []
 
@@ -154,3 +157,39 @@ class TestUptimeCheck:
         # Next due at should be calculated from the current time
         monitor: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
         assert monitor.next_due_at == datetime(2026, 2, 1, 12, 5, 0, tzinfo=UTC)
+
+    def test_assertion_fails(self, httpx_mock):
+        httpx_mock.add_response()
+
+        monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
+            frequency_mins=5,
+            state=MonitorState.up,
+            assertions=[Assertion(assertion_string="body contains 'foo'")],
+        )
+
+        UptimeCheck(str(monitor.project_id), monitor.slug).run()
+        monitor: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
+        assert monitor.state == MonitorState.down
+
+        monitor_id = f'{monitor.project_id}/{monitor.slug}'
+        response: UptimeLogModel = UptimeLogTable.query(monitor_id)[-1]
+
+        assert 'contains foo' in response.error_message[0]
+
+    def test_assertion_fails_with_multiple_errors(self, httpx_mock):
+        httpx_mock.add_response()
+
+        monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
+            frequency_mins=5,
+            state=MonitorState.up,
+            assertions=[
+                Assertion(assertion_string="body contains 'foo'"),
+                Assertion(assertion_string='status_code == 404'),
+            ],
+        )
+
+        UptimeCheck(str(monitor.project_id), monitor.slug).run()
+        monitor_id = f'{monitor.project_id}/{monitor.slug}'
+        response: UptimeLogModel = UptimeLogTable.query(monitor_id)[-1]
+
+        assert '404' in response.error_message[1]

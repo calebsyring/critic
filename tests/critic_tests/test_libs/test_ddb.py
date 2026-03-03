@@ -4,6 +4,7 @@ from unittest import mock
 from botocore.exceptions import ClientError
 import pytest
 
+from critic.libs.assertions import Assertion
 from critic.libs.testing import ProjectFactory, UptimeLogFactory, UptimeMonitorFactory
 from critic.models import ProjectModel, UptimeLogModel, UptimeMonitorModel
 from critic.tables import ProjectTable, UptimeLogTable, UptimeMonitorTable
@@ -12,10 +13,15 @@ from critic.tables import ProjectTable, UptimeLogTable, UptimeMonitorTable
 class TestTable:
     @pytest.mark.integration
     def test_integration(self):
+        # Pretend we've received data via the API
         UptimeMonitorFactory.put(
             project_id='6033aa47-a9f7-4d7f-b7ff-a11ba9b34474',
             slug='my-monitor',
             url='https://example.com/health',
+            assertions=[
+                Assertion(assertion_string='status_code == 200'),
+                Assertion(assertion_string="body contains 'OK'"),
+            ],
         )
         out_data = UptimeMonitorTable.get('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474', 'my-monitor')
 
@@ -33,7 +39,10 @@ class TestTable:
             'consecutive_fails': 0,
             'next_due_at': '2025-11-10T20:35:00Z',
             'timeout_secs': 30,
-            'assertions': {'status_code': 200, 'body_contains': 'OK'},
+            'assertions': [
+                Assertion(assertion_string='status_code == 200'),
+                Assertion(assertion_string="body contains 'OK'"),
+            ],
             'failures_before_alerting': 2,
             'alert_slack_channels': ['#ops'],
             'alert_emails': ['alerts@example.com'],
@@ -63,7 +72,12 @@ class TestTable:
             project_id='6033aa47-a9f7-4d7f-b7ff-a11ba9b34474',
             slug='my-monitor',
             url='https://example.com/health',
+            assertions=[
+                Assertion(assertion_string='status_code == 200'),
+                Assertion(assertion_string="body contains 'OK'"),
+            ],
         )
+
         out_data = UptimeMonitorTable.query('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474')
         assert len(out_data) == 1
         assert str(out_data[0].url) == 'https://example.com/health'
