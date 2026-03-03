@@ -7,6 +7,10 @@ policy-arns = [
 
 [deployed-env]
 CRITIC_NAMESPACE = 'qa'
+MAILGUN_API_KEY = 'op://critic/mailgun/password'
+MAILGUN_DOMAIN = 'mg.level12.io'
+MAILGUN_FROM = 'critic@level12.io'
+SLACK_BOT_TOKEN = 'op://critic/slack_bot_token/password'
 
 [event-rules.run-due-checks]
 action='run_due_checks'
