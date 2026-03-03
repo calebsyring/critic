@@ -3,7 +3,8 @@ from uuid import UUID
 
 import click
 
-from critic.models import UptimeMonitorModel
+from critic.libs.assertions import Assertion
+from critic.models import MonitorState, UptimeMonitorModel
 from critic.tables import ProjectTable, UptimeMonitorTable
 
 
@@ -41,6 +42,11 @@ def put_fake_monitors(project_id: UUID, count: int):
             project_id=project_id,
             slug=str(i),
             url='https://google.com',
+            failures_before_alerting=1,
+            alert_slack_channels=['C09D3TDEB9B'],
+            alert_emails=['critic@level12.io'],
+            assertions=[Assertion(assertion_string='status_code == 301')],
+            state=MonitorState.down,
         )
         UptimeMonitorTable.put(monitor)
         click.echo(f'  Put monitor: {project_id}/{i}')
