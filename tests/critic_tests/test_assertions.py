@@ -60,7 +60,7 @@ class TestAssertions:
         assertion = Assertion(assertion_string='status_code > 200')
         assert assertion.serialize_model() == 'status_code > 200'
 
-    def test_assertion_evaluates_correctly(self, httpx_mock):
+    def test_assertion_evaluates_correctly(self):
         assertion_status_code = Assertion(**STATUS_CODE_ASSERTION)
         assertion_resp_time = Assertion(**RESPONSE_TIME_ASSERTION)
         assertion_body = Assertion(**BODY_ASSERTION)

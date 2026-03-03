@@ -14,25 +14,15 @@ class TestTable:
     @pytest.mark.integration
     def test_integration(self):
         # Pretend we've received data via the API
-        IN_DATA = {
-            'project_id': '6033aa47-a9f7-4d7f-b7ff-a11ba9b34474',
-            'slug': 'my-monitor',
-            'url': 'https://example.com/health',
-            'frequency_mins': 5,
-            'consecutive_fails': 0,
-            'next_due_at': '2025-11-10T20:35:00Z',
-            'timeout_secs': 30,
-            'assertions': [
+        UptimeMonitorFactory.put(
+            project_id='6033aa47-a9f7-4d7f-b7ff-a11ba9b34474',
+            slug='my-monitor',
+            url='https://example.com/health',
+            assertions=[
                 Assertion(assertion_string='status_code == 200'),
                 Assertion(assertion_string="body contains 'OK'"),
             ],
-            'failures_before_alerting': 2,
-            'alert_slack_channels': ['#ops'],
-            'alert_emails': ['alerts@example.com'],
-            'realert_interval_mins': 60,
-        }
-
-        UptimeMonitorTable.put(IN_DATA)
+        )
         out_data = UptimeMonitorTable.get('6033aa47-a9f7-4d7f-b7ff-a11ba9b34474', 'my-monitor')
 
         # Check one of the values to make sure it's what we expect

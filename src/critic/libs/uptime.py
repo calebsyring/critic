@@ -78,8 +78,6 @@ class UptimeCheck:
         """
         Makes the request and returns the response and the time it took to make the request.
         """
-
-        # TODO figure out if we want to use time.perf_counter or built in httpx response latency
         start = time.perf_counter()
         with httpx.Client() as client:
             try:
@@ -106,7 +104,6 @@ class UptimeCheck:
             if self.monitor.assertions != []:
                 for assertions in self.monitor.assertions:
                     passed, error_message = assertions.evaluate(response)
-                    # TODO do we want it to keep checking assertions if the first fails?
                     if not passed:
                         error_messages.append(error_message)
                 if not error_messages:
