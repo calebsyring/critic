@@ -128,7 +128,7 @@ class UptimeCheck:
         state: MonitorState,
         status_code: int,
         latency: float,
-        error_messages: list[str] | None,
+        error_messages: list[str],
     ):
         """
         Puts a log for the check. This method should only be called once per monitor check.
@@ -141,7 +141,7 @@ class UptimeCheck:
             status=state,
             resp_code=status_code,
             latency_secs=latency,
-            error_message=error_messages,
+            error_message=error_messages if error_messages else None,
         )
         UptimeLogTable.put(uptime_log)
         self._put_log = True
