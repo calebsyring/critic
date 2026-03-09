@@ -5,7 +5,7 @@ import click
 
 from critic.libs.assertions import Assertion
 from critic.models import MonitorState, UptimeMonitorModel
-from critic.tables import ProjectTable, UptimeMonitorTable
+from critic.tables import ProjectTable, UptimeLogTable, UptimeMonitorTable
 
 
 @click.group()
@@ -73,6 +73,15 @@ def del_fake_monitors(project_id: UUID):
         click.echo(f'  Deleted monitor: {project_id}/{m.slug}')
 
     click.echo(f'Successfully deleted {len(monitors)} monitors from project {project_id}')
+
+
+@cli.command()
+@click.argument('project_id', type=click.STRING)
+def query_logs(project_id: str):
+    # if os.environ.get('AWS_PROFILE') != 'critic-qa':
+    # raise Exception('This command should only be run in the critic-qa account')
+    query_return = UptimeLogTable.query(project_id)
+    click.echo(f'Returning {len(query_return)} results')
 
 
 if __name__ == '__main__':
