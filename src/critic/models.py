@@ -31,6 +31,7 @@ class UptimeMonitorModel(BaseModel):
     state: MonitorState = Field(default=MonitorState.new)
     frequency_mins: int = Field(ge=1, default=1)
     consecutive_fails: int = Field(ge=0, default=0)
+    log_counter: int = Field(ge=0, default=0)
     next_due_at: AwareDatetime = Field(
         default_factory=lambda: datetime.now(UTC).replace(second=0, microsecond=0)
     )

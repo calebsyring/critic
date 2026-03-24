@@ -27,9 +27,9 @@ class TestUptimeCheck:
     def test_duplicate_log(self):
         monitor = UptimeMonitorFactory.put()
         check = UptimeCheck(str(monitor.project_id), monitor.slug)
-        check.put_log(MonitorState.up, 200, 0.1, None)
+        check.put_log(MonitorState.up, 200, 0.1, None, 0)
         with pytest.raises(Exception, match='Log already put'):
-            check.put_log(MonitorState.up, 200, 0.1, None)
+            check.put_log(MonitorState.up, 200, 0.1, None, 0)
 
     def test_race_condition(self, httpx_mock):
         monitor = UptimeMonitorFactory.put(next_due_at='2026-02-10 11:50:00Z')
@@ -74,6 +74,7 @@ class TestUptimeCheck:
         assert response.state == MonitorState.up
         assert response.next_due_at > time_to_check
         assert response.consecutive_fails == 0
+        assert response.log_counter == 1
 
         response: UptimeLogModel = UptimeLogTable.query(monitor.id)[-1]
 
@@ -97,6 +98,7 @@ class TestUptimeCheck:
         # Monitor should be down with 2 consec fails
         assert response.state == MonitorState.down
         assert response.consecutive_fails == 2
+        assert response.log_counter == 1
 
         response: UptimeLogModel = UptimeLogTable.query(monitor.id)[-1]
         # log should have resp of 0 since there was a timeout
@@ -117,6 +119,7 @@ class TestUptimeCheck:
         response: UptimeMonitorModel = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
         assert response.state == MonitorState.down
         assert response.consecutive_fails == 1
+        assert response.log_counter == 1
 
         response: UptimeLogModel = UptimeLogTable.query(monitor.id)[-1]
         # log should have resp of 0 since there was a timeout
@@ -193,3 +196,26 @@ class TestUptimeCheck:
         response: UptimeLogModel = UptimeLogTable.query(monitor_id)[-1]
 
         assert '404' in response.error_message[1]
+
+    def test_log_retention_limit(self, monkeypatch, httpx_mock):
+        monkeypatch.setattr(UptimeLogTable, 'retention_limit', 3)
+        monitor: UptimeMonitorModel = UptimeMonitorFactory.put(
+            next_due_at='2026-02-01 12:00:00Z',
+            frequency_mins=1,
+        )
+
+        for minute in range(4):
+            current = datetime(2026, 2, 1, 12, minute, 0, tzinfo=UTC)
+            httpx_mock.add_response()
+            with freeze_time(current):
+                UptimeCheck(str(monitor.project_id), monitor.slug).run()
+
+        logs = UptimeLogTable.query(monitor.id)
+        assert len(logs) == 3
+        monitor = UptimeMonitorTable.get(monitor.project_id, monitor.slug)
+        assert monitor.log_counter == 3
+        assert [log.timestamp for log in logs] == [
+            datetime(2026, 2, 1, 12, 1, 0, tzinfo=UTC),
+            datetime(2026, 2, 1, 12, 2, 0, tzinfo=UTC),
+            datetime(2026, 2, 1, 12, 3, 0, tzinfo=UTC),
+        ]

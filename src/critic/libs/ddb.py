@@ -143,7 +143,7 @@ class Table:
         return cls.ddb_to_model(response['Item']) if 'Item' in response else None
 
     @classmethod
-    def query(cls, partition_value: Any) -> list[BaseModel]:
+    def query(cls, partition_value: Any, **kwargs) -> list[BaseModel]:
         """Query for all items with the given partition key."""
         names, values, clauses = cls.alias({cls.partition_key: partition_value})
 
@@ -152,6 +152,7 @@ class Table:
             KeyConditionExpression=clauses[0],
             ExpressionAttributeNames=names,
             ExpressionAttributeValues=values,
+            **kwargs,
         )
 
         items = response.get('Items', [])
