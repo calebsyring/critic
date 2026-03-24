@@ -129,6 +129,7 @@ class UptimeCheck:
         status_code: int,
         latency: float,
         error_messages: list[str],
+        log_counter: int,
     ):
         """
         Puts a log for the check. This method should only be called once per monitor check.
@@ -143,6 +144,11 @@ class UptimeCheck:
             latency_secs=latency,
             error_message=error_messages if error_messages else None,
         )
+        if log_counter >= UptimeLogTable.retention_limit:
+            # The "-1" is to make room for the log we're about to put.
+            UptimeLogTable.prune(
+                self.monitor.id, log_counter - (UptimeLogTable.retention_limit - 1)
+            )
         UptimeLogTable.put(uptime_log)
         self._put_log = True
 
@@ -171,7 +177,13 @@ class UptimeCheck:
         state, consecutive_fails, error_messages = self.check_resp(resp)
 
         # Update the monitor
-        updated = self.update_monitor({'state': state, 'consecutive_fails': consecutive_fails})
+        updated = self.update_monitor(
+            {
+                'state': state,
+                'consecutive_fails': consecutive_fails,
+                'log_counter': min(self.monitor.log_counter + 1, UptimeLogTable.retention_limit),
+            }
+        )
 
         # Save a log
         if updated:
@@ -187,4 +199,5 @@ class UptimeCheck:
                 resp.status_code if resp else 0,
                 latency,
                 error_messages,
+                self.monitor.log_counter,
             )
