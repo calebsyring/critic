@@ -1,12 +1,11 @@
 import logging
 import os
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from flask import Flask, flash, redirect, render_template, request, url_for
 
-from critic.forms import CreateProjectForm
 from critic.models import UptimeMonitorModel
-from critic.tables import ProjectTable, UptimeMonitorTable
+from critic.tables import UptimeMonitorTable
 
 
 log = logging.getLogger()
@@ -39,29 +38,13 @@ def login():
 @app.route('/')
 def dashboard():
     """Overview of Monitors"""
-    return render_template('dashboard.html')
-
-
-@app.route('/project/<int:project_id>')
-def project_detail(project_id):
-    """"""
-    return render_template('project.html', project_id=project_id)
-
-
-@app.route('/monitor/<int:monitor_id>')
-def monitor_detail(monitor_id):
-    """"""
-    return render_template('monitor.html', monitor_id=monitor_id)
-
-
-@app.route('/create-project', methods=['GET', 'POST'])
-def create_project():
-    form = CreateProjectForm()
-    if form.validate_on_submit():
-        ProjectTable.put({'id': str(uuid4()), 'name': form.name.data.strip()})
-        flash('Project created successfully!', 'success')
-        return redirect(url_for('dashboard'))
-    return render_template('create_project.html', form=form)
+    monitors = sorted(
+        UptimeMonitorTable.scan(),
+        key=lambda monitor: (str(monitor.project_id), monitor.slug),
+    )
+    table_name = UptimeMonitorTable.name()
+    log.warning('Dashboard loading monitors from %s, count=%s', table_name, len(monitors))
+    return render_template('dashboard.html', monitors=monitors, table_name=table_name)
 
 
 @app.route('/create-monitor', methods=['GET', 'POST'])
@@ -84,18 +67,6 @@ def create_monitor():
         flash('Monitor created successfully!', 'success')
         return redirect(url_for('dashboard'))
     return render_template('create_monitor.html')
-
-
-@app.route('/project/<project_id>/delete', methods=['POST'])
-def delete_project(project_id):
-    """Delete a project."""
-    return render_template('delete.html')
-
-
-@app.route('/monitor/<int:monitor_id>/pause', methods=['POST'])
-def pause_monitor(monitor_id):
-    """HTMX endpoint, no template needed later"""
-    return render_template('pause_monitor.html', monitor_id=monitor_id)
 
 
 @app.route('/logout')
