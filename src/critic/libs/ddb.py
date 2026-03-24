@@ -157,6 +157,13 @@ class Table:
         items = response.get('Items', [])
         return [cls.model(**deserialize(item)) for item in items]
 
+    @classmethod
+    def scan(cls) -> list[BaseModel]:
+        """Return all items in the table."""
+        response = get_client().scan(TableName=cls.name())
+        items = response.get('Items', [])
+        return [cls.model(**deserialize(item)) for item in items]
+
     @staticmethod
     def alias(data: dict, val_suffix: str = '') -> tuple[dict, dict, list]:
         """
