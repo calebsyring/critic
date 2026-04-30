@@ -66,3 +66,10 @@ class UptimeLogTable(Table):
     model = UptimeLogModel
     partition_key = 'monitor_id'
     sort_key = 'timestamp'
+    retention_limit = 1440  # 24 hours if logging once a minute
+
+    @classmethod
+    def prune(cls, monitor_id: str, n: int):
+        """Prune the n oldest logs"""
+        for log in cls.query(monitor_id, ScanIndexForward=True, Limit=n):
+            cls.delete(monitor_id, getattr(log, cls.sort_key))
