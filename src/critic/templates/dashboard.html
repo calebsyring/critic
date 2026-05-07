@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-end mb-4">
+  <a class="btn btn-primary" href="{{ url_for('create_monitor') }}">Create Monitor</a>
+</div>
+
+{% if monitors %}
+  <p class="text-muted mb-3">
+    {{ monitors|length }} monitor{% if monitors|length != 1 %}s{% endif %}
+  </p>
+
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead>
+        <tr>
+          <th scope="col">Slug</th>
+          <th scope="col">URL</th>
+          <th scope="col">Frequency</th>
+          <th scope="col">State</th>
+          <th scope="col">Project ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for monitor in monitors %}
+          <tr>
+            <td class="fw-semibold">{{ monitor.slug }}</td>
+            <td><a href="{{ monitor.url }}" target="_blank" rel="noreferrer">{{ monitor.url }}</a></td>
+            <td>{{ monitor.frequency_mins }} min</td>
+            <td class="text-capitalize">{{ monitor.state.value }}</td>
+            <td class="text-muted small">{{ monitor.project_id }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="border rounded p-4 bg-light">
+    <p class="mb-3 text-muted">No monitors yet.</p>
+    <a class="btn btn-primary" href="{{ url_for('create_monitor') }}">Create your first monitor</a>
+  </div>
+{% endif %}
+
+{% endblock %}

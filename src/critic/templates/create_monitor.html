@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Create Monitor{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 700px;">
+  <h1 class="h3 mb-4">Create Monitor</h1>
+
+  <form method="POST" action="{{ url_for('create_monitor') }}" class="vstack gap-3">
+    <div>
+      <label for="project_id" class="form-label">Project ID (UUID)</label>
+      <input
+        type="text"
+        class="form-control"
+        id="project_id"
+        name="project_id"
+        placeholder="6033aa47-a9f7-4d7f-b7ff-a11ba9b34474"
+        required
+      >
+    </div>
+
+    <div>
+      <label for="slug" class="form-label">Slug</label>
+      <input
+        type="text"
+        class="form-control"
+        id="slug"
+        name="slug"
+        placeholder="my-monitor"
+        required
+      >
+      <div class="form-text">Lowercase letters, numbers, and hyphens.</div>
+    </div>
+
+    <div>
+      <label for="url" class="form-label">URL</label>
+      <input
+        type="url"
+        class="form-control"
+        id="url"
+        name="url"
+        placeholder="https://example.com/health"
+        required
+      >
+    </div>
+
+    <div>
+      <label for="frequency_mins" class="form-label">Frequency (minutes)</label>
+      <input
+        type="number"
+        class="form-control"
+        id="frequency_mins"
+        name="frequency_mins"
+        min="1"
+        step="1"
+        value="5"
+        required
+      >
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Create Monitor</button>
+      <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
